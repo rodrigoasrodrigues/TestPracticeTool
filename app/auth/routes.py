@@ -20,10 +20,11 @@ def login():
         login_user(user, remember=form.remember_me.data)
         next_page = request.args.get('next')
         # Validate the next URL to prevent open redirect attacks
-        if not next_page or urlsplit(next_page).netloc != '':
-            next_page = url_for('main.index')
-        return redirect(next_page)
-    return render_template('auth/login.html', title='Login', form=form)
+        if next_page and urlsplit(next_page).netloc == '':
+            safe_next = next_page
+        else:
+            safe_next = url_for('main.index')
+        return redirect(safe_next)
     return render_template('auth/login.html', title='Login', form=form)
 
 
