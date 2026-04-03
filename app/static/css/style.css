@@ -1,0 +1,90 @@
+/* TestPracticeTool - Custom Styles */
+
+body {
+    background-color: #f8f9fa;
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+}
+
+main {
+    flex: 1;
+}
+
+/* Navbar */
+.navbar-brand {
+    font-size: 1.3rem;
+}
+
+/* Cards */
+.card {
+    border-radius: 0.5rem;
+}
+
+/* Option labels in exam */
+.option-input:checked + .option-label {
+    background-color: #e8f0fe;
+    border-color: #4285f4 !important;
+    font-weight: 600;
+}
+
+.option-label {
+    cursor: pointer;
+    transition: background-color 0.15s ease;
+    border-radius: 0.375rem;
+}
+
+.option-label:hover {
+    background-color: #f0f4ff;
+}
+
+/* Timer */
+#timer-bar {
+    position: sticky;
+    top: 56px;
+    z-index: 100;
+    background: white;
+}
+
+/* Score display */
+.score-card {
+    border-radius: 1rem;
+}
+
+/* Question highlighting */
+.border-success {
+    border-color: #198754 !important;
+    border-width: 2px !important;
+}
+
+.border-danger {
+    border-color: #dc3545 !important;
+    border-width: 2px !important;
+}
+
+/* Badges */
+.badge.fs-6 {
+    font-size: 0.9rem !important;
+}
+
+/* Footer */
+.footer {
+    margin-top: auto;
+}
+
+/* Responsive table */
+@media (max-width: 576px) {
+    .table-responsive .btn-group {
+        flex-direction: column;
+    }
+}
+
+/* Print styles for answer key */
+@media print {
+    .navbar, .footer, .btn, form {
+        display: none !important;
+    }
+    .card {
+        break-inside: avoid;
+    }
+}

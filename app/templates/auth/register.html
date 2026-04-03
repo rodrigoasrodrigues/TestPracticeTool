@@ -1,0 +1,68 @@
+{% extends "base.html" %}
+{% block title %}Registrar - TestPracticeTool{% endblock %}
+
+{% block content %}
+<div class="container">
+    <div class="row justify-content-center mt-5">
+        <div class="col-md-6">
+            <div class="card shadow-sm">
+                <div class="card-body p-4">
+                    <div class="text-center mb-4">
+                        <i class="bi bi-person-plus-fill text-primary" style="font-size: 2.5rem;"></i>
+                        <h2 class="mt-2 fw-bold">Criar Conta</h2>
+                    </div>
+                    <form method="POST" action="{{ url_for('auth.register') }}">
+                        {{ form.hidden_tag() }}
+                        <div class="mb-3">
+                            {{ form.username.label(class="form-label fw-semibold") }}
+                            {{ form.username(class="form-control" + (" is-invalid" if form.username.errors else ""),
+                               placeholder="Nome de usuário") }}
+                            {% for error in form.username.errors %}
+                            <div class="invalid-feedback">{{ error }}</div>
+                            {% endfor %}
+                        </div>
+                        <div class="mb-3">
+                            {{ form.email.label(class="form-label fw-semibold") }}
+                            {{ form.email(class="form-control" + (" is-invalid" if form.email.errors else ""),
+                               placeholder="email@exemplo.com") }}
+                            {% for error in form.email.errors %}
+                            <div class="invalid-feedback">{{ error }}</div>
+                            {% endfor %}
+                        </div>
+                        <div class="mb-3">
+                            {{ form.password.label(class="form-label fw-semibold") }}
+                            {{ form.password(class="form-control" + (" is-invalid" if form.password.errors else ""),
+                               placeholder="Mínimo 6 caracteres") }}
+                            {% for error in form.password.errors %}
+                            <div class="invalid-feedback">{{ error }}</div>
+                            {% endfor %}
+                        </div>
+                        <div class="mb-3">
+                            {{ form.password2.label(class="form-label fw-semibold") }}
+                            {{ form.password2(class="form-control" + (" is-invalid" if form.password2.errors else ""),
+                               placeholder="Repita a senha") }}
+                            {% for error in form.password2.errors %}
+                            <div class="invalid-feedback">{{ error }}</div>
+                            {% endfor %}
+                        </div>
+                        <div class="mb-3">
+                            {{ form.role.label(class="form-label fw-semibold") }}
+                            {{ form.role(class="form-select" + (" is-invalid" if form.role.errors else "")) }}
+                            {% for error in form.role.errors %}
+                            <div class="invalid-feedback">{{ error }}</div>
+                            {% endfor %}
+                        </div>
+                        <div class="d-grid">
+                            {{ form.submit(class="btn btn-primary btn-lg") }}
+                        </div>
+                    </form>
+                    <hr>
+                    <p class="text-center mb-0">
+                        Já tem conta? <a href="{{ url_for('auth.login') }}">Faça login</a>
+                    </p>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

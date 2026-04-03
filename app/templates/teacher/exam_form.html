@@ -1,0 +1,119 @@
+{% extends "base.html" %}
+{% block title %}{{ title }} - TestPracticeTool{% endblock %}
+
+{% block content %}
+<div class="container">
+    <div class="d-flex align-items-center mb-4">
+        <a href="{{ url_for('teacher.exams') }}" class="btn btn-sm btn-outline-secondary me-3">
+            <i class="bi bi-arrow-left"></i>
+        </a>
+        <h1 class="mb-0">{{ title }}</h1>
+    </div>
+
+    <div class="row justify-content-center">
+        <div class="col-lg-8">
+            <div class="card shadow-sm">
+                <div class="card-body p-4">
+                    <form method="POST" id="examForm">
+                        {{ form.hidden_tag() }}
+
+                        <div class="mb-3">
+                            {{ form.title.label(class="form-label fw-semibold") }}
+                            {{ form.title(class="form-control" + (" is-invalid" if form.title.errors else ""),
+                               placeholder="Ex: Simulado de Matemática - 2025") }}
+                            {% for error in form.title.errors %}
+                            <div class="invalid-feedback">{{ error }}</div>
+                            {% endfor %}
+                        </div>
+
+                        <div class="mb-4">
+                            {{ form.description.label(class="form-label fw-semibold") }}
+                            {{ form.description(class="form-control", rows=2,
+                               placeholder="Descrição opcional da prova...") }}
+                        </div>
+
+                        <hr>
+                        <div class="d-flex justify-content-between align-items-center mb-3">
+                            <h6 class="fw-bold mb-0">
+                                <i class="bi bi-book me-1"></i>Matérias e Quantidade de Questões
+                            </h6>
+                            <button type="button" class="btn btn-sm btn-outline-success" id="addSubjectBtn">
+                                <i class="bi bi-plus-lg me-1"></i>Adicionar Matéria
+                            </button>
+                        </div>
+
+                        <div id="subjectRows">
+                            <!-- Subject rows will be added here -->
+                        </div>
+
+                        <div id="noSubjectWarning" class="alert alert-warning">
+                            <i class="bi bi-exclamation-triangle me-1"></i>
+                            Adicione pelo menos uma matéria para criar a prova.
+                        </div>
+
+                        <div class="d-flex gap-2 mt-4">
+                            {{ form.submit(class="btn btn-warning") }}
+                            <a href="{{ url_for('teacher.exams') }}" class="btn btn-outline-secondary">Cancelar</a>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Subject row template -->
+<template id="subjectRowTemplate">
+    <div class="subject-row border rounded p-3 mb-2 bg-light">
+        <div class="row g-2 align-items-end">
+            <div class="col-md-7">
+                <label class="form-label small fw-semibold">Matéria</label>
+                <select class="form-select form-select-sm" name="subject_ids[]">
+                    <option value="">— Selecione —</option>
+                    {% for subject in subjects %}
+                    <option value="{{ subject.id }}"
+                            data-count="{{ subject.questions.filter_by(created_by=current_user.id).count() }}">
+                        {{ subject.name }}
+                        ({{ subject.questions.filter_by(created_by=current_user.id).count() }} disponíveis)
+                    </option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="col-md-3">
+                <label class="form-label small fw-semibold">Nº Questões</label>
+                <input type="number" class="form-control form-control-sm" name="num_questions[]"
+                       min="1" value="1">
+            </div>
+            <div class="col-md-2">
+                <button type="button" class="btn btn-sm btn-outline-danger w-100 remove-row-btn">
+                    <i class="bi bi-trash"></i>
+                </button>
+            </div>
+        </div>
+    </div>
+</template>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+const template = document.getElementById('subjectRowTemplate');
+const container = document.getElementById('subjectRows');
+const warning = document.getElementById('noSubjectWarning');
+
+function updateWarning() {
+    warning.style.display = container.children.length === 0 ? 'block' : 'none';
+}
+
+document.getElementById('addSubjectBtn').addEventListener('click', function() {
+    const clone = template.content.cloneNode(true);
+    clone.querySelector('.remove-row-btn').addEventListener('click', function() {
+        this.closest('.subject-row').remove();
+        updateWarning();
+    });
+    container.appendChild(clone);
+    updateWarning();
+});
+
+updateWarning();
+</script>
+{% endblock %}

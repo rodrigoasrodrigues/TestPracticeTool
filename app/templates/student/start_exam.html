@@ -1,0 +1,83 @@
+{% extends "base.html" %}
+{% block title %}{{ title }} - TestPracticeTool{% endblock %}
+
+{% block content %}
+<div class="container">
+    <div class="row justify-content-center">
+        <div class="col-md-7">
+            <div class="card shadow-sm">
+                <div class="card-header bg-primary text-white text-center py-4">
+                    <i class="bi bi-file-earmark-text-fill fs-1 d-block mb-2"></i>
+                    <h2 class="mb-0">{{ assignment.exam.title }}</h2>
+                    {% if assignment.exam.description %}
+                    <p class="mb-0 opacity-75 mt-1">{{ assignment.exam.description }}</p>
+                    {% endif %}
+                </div>
+                <div class="card-body p-4">
+                    <div class="row g-3 mb-4">
+                        <div class="col-6">
+                            <div class="text-center border rounded p-3">
+                                <i class="bi bi-list-ol text-primary fs-4 d-block mb-1"></i>
+                                <div class="fw-bold fs-4">{{ assignment.exam.total_questions() }}</div>
+                                <small class="text-muted">Questões</small>
+                            </div>
+                        </div>
+                        <div class="col-6">
+                            <div class="text-center border rounded p-3">
+                                <i class="bi bi-clock text-warning fs-4 d-block mb-1"></i>
+                                <div class="fw-bold fs-4">
+                                    {% if assignment.time_limit_minutes %}
+                                    {{ assignment.time_limit_minutes }} min
+                                    {% else %}
+                                    Sem limite
+                                    {% endif %}
+                                </div>
+                                <small class="text-muted">Tempo</small>
+                            </div>
+                        </div>
+                        <div class="col-6">
+                            <div class="text-center border rounded p-3">
+                                <i class="bi bi-arrow-repeat text-success fs-4 d-block mb-1"></i>
+                                <div class="fw-bold fs-4">
+                                    {{ assignment.max_attempts - assignment.attempt_count() }}
+                                </div>
+                                <small class="text-muted">Tentativas restantes</small>
+                            </div>
+                        </div>
+                        <div class="col-6">
+                            <div class="text-center border rounded p-3">
+                                <i class="bi bi-trophy text-info fs-4 d-block mb-1"></i>
+                                <div class="fw-bold fs-4">
+                                    {% set best = assignment.best_score() %}
+                                    {% if best is not none %}{{ best }}%{% else %}—{% endif %}
+                                </div>
+                                <small class="text-muted">Melhor nota</small>
+                            </div>
+                        </div>
+                    </div>
+
+                    {% if assignment.time_limit_minutes %}
+                    <div class="alert alert-warning">
+                        <i class="bi bi-exclamation-triangle-fill me-2"></i>
+                        Você terá <strong>{{ assignment.time_limit_minutes }} minutos</strong> para concluir a prova.
+                        Ao término do tempo, a prova será enviada automaticamente.
+                    </div>
+                    {% endif %}
+
+                    <form method="POST" action="{{ url_for('student.start_exam', assignment_id=assignment.id) }}">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                        <div class="d-grid gap-2">
+                            <button type="submit" class="btn btn-primary btn-lg">
+                                <i class="bi bi-play-fill me-2"></i>Começar Prova
+                            </button>
+                            <a href="{{ url_for('student.dashboard') }}" class="btn btn-outline-secondary">
+                                Voltar
+                            </a>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

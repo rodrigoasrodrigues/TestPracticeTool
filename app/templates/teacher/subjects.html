@@ -1,0 +1,63 @@
+{% extends "base.html" %}
+{% block title %}Matérias - TestPracticeTool{% endblock %}
+
+{% block content %}
+<div class="container">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div class="d-flex align-items-center">
+            <i class="bi bi-book text-primary fs-3 me-2"></i>
+            <h1 class="mb-0">Matérias</h1>
+        </div>
+        <a href="{{ url_for('teacher.create_subject') }}" class="btn btn-primary">
+            <i class="bi bi-plus-lg me-1"></i>Nova Matéria
+        </a>
+    </div>
+
+    {% if subjects %}
+    <div class="row g-3">
+        {% for subject in subjects %}
+        <div class="col-md-4">
+            <div class="card shadow-sm h-100">
+                <div class="card-body">
+                    <h5 class="card-title">{{ subject.name }}</h5>
+                    {% if subject.description %}
+                    <p class="card-text text-muted small">{{ subject.description }}</p>
+                    {% endif %}
+                    <div class="d-flex align-items-center text-muted small">
+                        <i class="bi bi-question-circle me-1"></i>
+                        {{ subject.questions.count() }} questão(ões)
+                    </div>
+                </div>
+                <div class="card-footer bg-transparent d-flex gap-2">
+                    <a href="{{ url_for('teacher.questions', subject_id=subject.id) }}"
+                       class="btn btn-sm btn-outline-primary">
+                        <i class="bi bi-eye me-1"></i>Ver Questões
+                    </a>
+                    <a href="{{ url_for('teacher.edit_subject', subject_id=subject.id) }}"
+                       class="btn btn-sm btn-outline-secondary">
+                        <i class="bi bi-pencil me-1"></i>Editar
+                    </a>
+                    <form method="POST"
+                          action="{{ url_for('teacher.delete_subject', subject_id=subject.id) }}"
+                          onsubmit="return confirm('Excluir a matéria {{ subject.name }}? Isso excluirá todas as questões associadas.')">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                        <button type="submit" class="btn btn-sm btn-outline-danger">
+                            <i class="bi bi-trash"></i>
+                        </button>
+                    </form>
+                </div>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+    {% else %}
+    <div class="text-center py-5 text-muted">
+        <i class="bi bi-book fs-1 d-block mb-3"></i>
+        <h4>Nenhuma matéria criada ainda.</h4>
+        <a href="{{ url_for('teacher.create_subject') }}" class="btn btn-primary mt-2">
+            <i class="bi bi-plus-lg me-1"></i>Criar primeira matéria
+        </a>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}

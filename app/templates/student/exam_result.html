@@ -1,0 +1,122 @@
+{% extends "base.html" %}
+{% block title %}{{ title }} - TestPracticeTool{% endblock %}
+
+{% block content %}
+<div class="container">
+    <!-- Score Banner -->
+    <div class="card border-0 shadow mb-4
+                {{ 'bg-success' if attempt.score >= 60 else 'bg-danger' }} text-white">
+        <div class="card-body text-center py-4">
+            {% if attempt.score >= 60 %}
+            <i class="bi bi-trophy-fill fs-1 d-block mb-2"></i>
+            <h2 class="mb-1">Parabéns!</h2>
+            {% else %}
+            <i class="bi bi-emoji-frown fs-1 d-block mb-2"></i>
+            <h2 class="mb-1">Não foi desta vez...</h2>
+            {% endif %}
+            <div class="display-4 fw-bold">{{ attempt.score }}%</div>
+            <div class="opacity-75 mt-1">
+                {% set correct_count = namespace(value=0) %}
+                {% for eq in questions %}
+                {% set ans = answers_map.get(eq.id) %}
+                {% if ans and ans.is_correct() %}
+                {% set correct_count.value = correct_count.value + 1 %}
+                {% endif %}
+                {% endfor %}
+                {{ correct_count.value }} de {{ questions|length }} questões corretas
+            </div>
+        </div>
+    </div>
+
+    <div class="d-flex justify-content-between mb-4">
+        <a href="{{ url_for('student.dashboard') }}" class="btn btn-outline-secondary">
+            <i class="bi bi-arrow-left me-1"></i>Voltar às Provas
+        </a>
+        {% set can, msg = attempt.student_exam.can_attempt() %}
+        {% if can %}
+        <a href="{{ url_for('student.start_exam', assignment_id=attempt.student_exam_id) }}"
+           class="btn btn-primary">
+            <i class="bi bi-arrow-repeat me-1"></i>Tentar Novamente
+        </a>
+        {% endif %}
+    </div>
+
+    <h4 class="mb-3"><i class="bi bi-list-check me-2"></i>Revisão das Questões</h4>
+
+    {% for eq in questions %}
+    {% set answer = answers_map.get(eq.id) %}
+    {% set is_correct = answer and answer.is_correct() %}
+    {% set not_answered = not answer or not answer.selected_option_id %}
+
+    <div class="card shadow-sm mb-4
+                {{ 'border-danger' if not is_correct and not not_answered else '' }}
+                {{ 'border-success' if is_correct else '' }}">
+        <div class="card-header d-flex justify-content-between align-items-center
+                    {{ 'bg-danger bg-opacity-10' if not is_correct and not not_answered else '' }}
+                    {{ 'bg-success bg-opacity-10' if is_correct else '' }}
+                    {{ 'bg-light' if not_answered else '' }}">
+            <span class="fw-semibold">Questão {{ loop.index }}</span>
+            <div>
+                <span class="badge bg-primary-subtle text-primary me-1">{{ eq.question.subject.name }}</span>
+                {% if is_correct %}
+                <span class="badge bg-success"><i class="bi bi-check-lg me-1"></i>Correta</span>
+                {% elif not_answered %}
+                <span class="badge bg-secondary">Não respondida</span>
+                {% else %}
+                <span class="badge bg-danger"><i class="bi bi-x-lg me-1"></i>Incorreta</span>
+                {% endif %}
+            </div>
+        </div>
+        <div class="card-body">
+            <p class="mb-3">{{ eq.question.text }}</p>
+            {% if eq.question.image_path %}
+            <div class="mb-3">
+                <img src="{{ url_for('static', filename='uploads/' + eq.question.image_path) }}"
+                     class="img-fluid rounded" style="max-height: 200px;" alt="Imagem da questão">
+            </div>
+            {% endif %}
+
+            <ul class="list-group list-group-flush mb-3">
+                {% for opt in eq.options %}
+                {% set opt_id = opt.answer_option_id %}
+                {% set selected = answer and answer.selected_option_id == opt_id %}
+                {% set correct = opt.answer_option.is_correct %}
+                <li class="list-group-item
+                    {{ 'list-group-item-success fw-semibold' if correct else '' }}
+                    {{ 'list-group-item-danger' if selected and not correct else '' }}">
+                    <span class="badge bg-secondary me-2">{{ loop.index }}</span>
+                    {{ opt.answer_option.text }}
+                    {% if selected and not correct %}
+                    <span class="badge bg-danger ms-2">
+                        <i class="bi bi-x me-1"></i>Sua resposta
+                    </span>
+                    {% elif selected and correct %}
+                    <span class="badge bg-success ms-2">
+                        <i class="bi bi-check me-1"></i>Sua resposta (correta!)
+                    </span>
+                    {% elif correct %}
+                    <span class="badge bg-success ms-2">
+                        <i class="bi bi-check me-1"></i>Resposta correta
+                    </span>
+                    {% endif %}
+                </li>
+                {% endfor %}
+            </ul>
+
+            {% if eq.question.explanation %}
+            <div class="alert alert-info mb-0">
+                <i class="bi bi-lightbulb-fill me-2"></i>
+                <strong>Explicação:</strong> {{ eq.question.explanation }}
+            </div>
+            {% endif %}
+        </div>
+    </div>
+    {% endfor %}
+
+    <div class="text-center my-4">
+        <a href="{{ url_for('student.dashboard') }}" class="btn btn-outline-secondary btn-lg">
+            <i class="bi bi-arrow-left me-1"></i>Voltar às Provas
+        </a>
+    </div>
+</div>
+{% endblock %}

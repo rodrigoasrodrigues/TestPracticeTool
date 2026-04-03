@@ -1,0 +1,80 @@
+{% extends "base.html" %}
+{% block title %}{{ title }} - TestPracticeTool{% endblock %}
+
+{% block content %}
+<div class="container">
+    <div class="d-flex align-items-center mb-4">
+        <a href="{{ url_for('teacher.student_attempts', exam_id=exam.id, student_id=attempt.student_exam.student_id) }}"
+           class="btn btn-sm btn-outline-secondary me-3">
+            <i class="bi bi-arrow-left"></i>
+        </a>
+        <div>
+            <h1 class="mb-0">Detalhes da Tentativa</h1>
+            <p class="text-muted mb-0">
+                {{ exam.title }} &mdash; {{ attempt.student_exam.student.username }}
+                &mdash; Nota:
+                <strong class="{{ 'text-success' if attempt.score >= 60 else 'text-danger' }}">
+                    {{ attempt.score }}%
+                </strong>
+            </p>
+        </div>
+    </div>
+
+    {% for eq in questions %}
+    {% set answer = eq_map.get(eq.id) %}
+    {% set is_correct = answer and answer.is_correct() %}
+    <div class="card shadow-sm mb-3 {{ 'border-danger' if answer and not is_correct else ('border-success' if is_correct else '') }}">
+        <div class="card-header d-flex justify-content-between align-items-center
+                    {{ 'bg-danger bg-opacity-10' if answer and not is_correct else ('bg-success bg-opacity-10' if is_correct else 'bg-light') }}">
+            <span class="fw-semibold">Questão {{ loop.index }}</span>
+            <div>
+                <span class="badge bg-primary-subtle text-primary me-2">{{ eq.question.subject.name }}</span>
+                {% if is_correct %}
+                <span class="badge bg-success"><i class="bi bi-check-lg me-1"></i>Correta</span>
+                {% elif answer and answer.selected_option_id %}
+                <span class="badge bg-danger"><i class="bi bi-x-lg me-1"></i>Incorreta</span>
+                {% else %}
+                <span class="badge bg-secondary">Não respondida</span>
+                {% endif %}
+            </div>
+        </div>
+        <div class="card-body">
+            <p class="mb-3">{{ eq.question.text }}</p>
+            {% if eq.question.image_path %}
+            <div class="mb-3">
+                <img src="{{ url_for('static', filename='uploads/' + eq.question.image_path) }}"
+                     class="img-fluid rounded" style="max-height: 200px;" alt="Imagem da questão">
+            </div>
+            {% endif %}
+            <ul class="list-group list-group-flush mb-3">
+                {% for opt in eq.options %}
+                {% set opt_id = opt.answer_option_id %}
+                {% set selected = answer and answer.selected_option_id == opt_id %}
+                {% set correct = opt.answer_option.is_correct %}
+                <li class="list-group-item
+                    {{ 'list-group-item-success' if correct else '' }}
+                    {{ 'list-group-item-danger' if selected and not correct else '' }}">
+                    <span class="badge bg-secondary me-2">{{ loop.index }}</span>
+                    {{ opt.answer_option.text }}
+                    {% if selected %}
+                    <span class="badge {{ 'bg-success' if correct else 'bg-danger' }} ms-2">
+                        Resposta do aluno
+                    </span>
+                    {% endif %}
+                    {% if correct %}
+                    <span class="badge bg-success ms-1">Correta</span>
+                    {% endif %}
+                </li>
+                {% endfor %}
+            </ul>
+            {% if eq.question.explanation %}
+            <div class="alert alert-info mb-0">
+                <i class="bi bi-lightbulb-fill me-2"></i>
+                <strong>Explicação:</strong> {{ eq.question.explanation }}
+            </div>
+            {% endif %}
+        </div>
+    </div>
+    {% endfor %}
+</div>
+{% endblock %}
