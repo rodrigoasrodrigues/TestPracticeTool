@@ -192,6 +192,11 @@ class StudentExam(db.Model):
             return None
         return max(a.score for a in completed if a.score is not None)
 
+    def get_last_completed_attempt(self):
+        return self.attempts.filter(
+            ExamAttempt.completed_at.isnot(None)
+        ).order_by(ExamAttempt.started_at.desc()).first()
+
     def __repr__(self):
         return f'<StudentExam student={self.student_id} exam={self.exam_id}>'
 

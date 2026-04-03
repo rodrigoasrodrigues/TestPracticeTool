@@ -93,7 +93,7 @@
                     </button>
                     {% if assignment.attempt_count() > 0 %}
                     <div class="mt-2">
-                        {% set last_attempt = assignment.attempts.filter(assignment.attempts.property.mapper.class_.completed_at.isnot(None)).order_by(assignment.attempts.property.mapper.class_.started_at.desc()).first() %}
+                        {% set last_attempt = assignment.get_last_completed_attempt() %}
                         {% if last_attempt %}
                         <a href="{{ url_for('student.exam_result', attempt_id=last_attempt.id) }}"
                            class="btn btn-outline-info w-100 btn-sm">
