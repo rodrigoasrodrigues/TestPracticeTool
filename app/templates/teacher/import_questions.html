@@ -9,7 +9,7 @@
         </a>
         <div>
             <h1 class="mb-0"><i class="bi bi-file-earmark-arrow-up text-success me-2"></i>Importar Questões</h1>
-            <small class="text-muted">Importe questões em lote a partir de um arquivo YAML.</small>
+            <small class="text-muted">Importe questões e imagens em lote a partir de um pacote ZIP.</small>
         </div>
     </div>
 
@@ -33,14 +33,14 @@
                         </div>
 
                         <div class="mb-4">
-                            {{ form.yaml_file.label(class="form-label fw-semibold") }}
-                            {{ form.yaml_file(class="form-control" + (" is-invalid" if form.yaml_file.errors else ""),
-                               accept=".yaml,.yml") }}
-                            {% for error in form.yaml_file.errors %}
+                            {{ form.package_file.label(class="form-label fw-semibold") }}
+                            {{ form.package_file(class="form-control" + (" is-invalid" if form.package_file.errors else ""),
+                               accept=".zip") }}
+                            {% for error in form.package_file.errors %}
                             <div class="invalid-feedback">{{ error }}</div>
                             {% endfor %}
                             <div class="form-text">
-                                Apenas arquivos <code>.yaml</code> ou <code>.yml</code>.
+                                Apenas arquivos <code>.zip</code> contendo YAML e imagens.
                                 Tamanho máximo: 16 MB.
                             </div>
                         </div>
@@ -58,15 +58,23 @@
         <div class="col-lg-6">
             <div class="card shadow-sm h-100">
                 <div class="card-header bg-transparent d-flex justify-content-between align-items-center">
-                    <h5 class="mb-0"><i class="bi bi-code-square me-2"></i>Formato do Arquivo</h5>
+                    <h5 class="mb-0"><i class="bi bi-code-square me-2"></i>Estrutura do Pacote</h5>
                     <a href="{{ url_for('teacher.yaml_template') }}" class="btn btn-sm btn-outline-secondary">
-                        <i class="bi bi-download me-1"></i>Baixar modelo
+                        <i class="bi bi-download me-1"></i>Baixar modelo YAML
                     </a>
                 </div>
                 <div class="card-body p-4">
-                    <pre class="bg-light rounded p-3 small mb-3" style="overflow-x:auto"><code># Modelo de questões
+                    <pre class="bg-light rounded p-3 small mb-3" style="overflow-x:auto"><code># Estrutura recomendada do ZIP
+# pacote.zip
+#   ├── materia_questoes.yaml
+#   └── images/
+#       ├── q00001_enunciado.png
+#       └── q00002_enunciado.jpg
+
+# Exemplo de YAML dentro do pacote
 questions:
   - text: "Enunciado da questão"
+    image_file: "q00001_enunciado.png"   # opcional (nome do arquivo no ZIP)
     explanation: "Explicação (só no gabarito)"  # opcional
     correct: 3          # número da opção correta (1–5)
     options:
@@ -101,11 +109,11 @@ questions:
                         </li>
                         <li class="mb-1">
                             <i class="bi bi-check-circle-fill text-success me-1"></i>
-                            O arquivo deve começar com a chave raiz <code>questions:</code>.
+                            <code>image_file</code> é opcional e deve apontar para uma imagem dentro do ZIP.
                         </li>
                         <li>
                             <i class="bi bi-check-circle-fill text-success me-1"></i>
-                            Extensões aceitas: <code>.yaml</code> ou <code>.yml</code>.
+                            O YAML deve conter a chave raiz <code>questions:</code> e estar dentro do pacote <code>.zip</code>.
                         </li>
                     </ul>
                 </div>

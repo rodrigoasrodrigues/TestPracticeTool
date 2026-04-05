@@ -70,8 +70,8 @@ class AssignExamForm(FlaskForm):
 
 class ImportQuestionsForm(FlaskForm):
     subject_id = SelectField('Matéria de destino', coerce=int, validators=[DataRequired()])
-    yaml_file = FileField('Arquivo YAML',
-                          validators=[DataRequired(),
-                                      FileAllowed(['yaml', 'yml'],
-                                                  'Apenas arquivos YAML (.yaml / .yml) são permitidos.')])
+    package_file = FileField('Pacote ZIP',
+                             validators=[DataRequired(),
+                                         FileAllowed(['zip'],
+                                                     'Apenas arquivos ZIP (.zip) são permitidos.')])
     submit = SubmitField('Importar Questões')

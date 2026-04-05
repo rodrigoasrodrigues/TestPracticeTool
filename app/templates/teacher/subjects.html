@@ -28,18 +28,22 @@
                         {{ subject.questions.count() }} questão(ões)
                     </div>
                 </div>
-                <div class="card-footer bg-transparent d-flex gap-2">
+                <div class="card-footer bg-transparent d-flex gap-2 flex-wrap">
                     <a href="{{ url_for('teacher.questions', subject_id=subject.id) }}"
                        class="btn btn-sm btn-outline-primary">
                         <i class="bi bi-eye me-1"></i>Ver Questões
                     </a>
                     <a href="{{ url_for('teacher.import_questions', subject_id=subject.id) }}"
-                       class="btn btn-sm btn-outline-success" title="Importar questões via YAML">
-                        <i class="bi bi-file-earmark-arrow-up me-1"></i>Importar
+                       class="btn btn-sm btn-outline-success" title="Importar pacote ZIP de questões">
+                        <i class="bi bi-file-earmark-zip me-1"></i>Importar ZIP
                     </a>
                     <a href="{{ url_for('teacher.edit_subject', subject_id=subject.id) }}"
                        class="btn btn-sm btn-outline-secondary">
                         <i class="bi bi-pencil me-1"></i>Editar
+                    </a>
+                    <a href="{{ url_for('teacher.export_subject_package', subject_id=subject.id) }}"
+                       class="btn btn-sm btn-outline-info" title="Exportar pacote ZIP com YAML e imagens">
+                        <i class="bi bi-file-earmark-zip me-1"></i>Exportar ZIP
                     </a>
                     <form method="POST"
                           action="{{ url_for('teacher.delete_subject', subject_id=subject.id) }}"

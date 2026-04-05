@@ -2,10 +2,12 @@ import os
 import io
 import random
 import uuid
+import zipfile
 import yaml
 from datetime import datetime
 from flask import render_template, redirect, url_for, flash, request, abort, current_app, Response
 from flask_login import login_required, current_user
+from werkzeug.utils import secure_filename
 from app import db
 from app.teacher import bp
 from app.teacher.forms import SubjectForm, QuestionForm, ExamForm, AssignExamForm, ImportQuestionsForm
@@ -37,6 +39,64 @@ def save_image(file):
     os.makedirs(upload_folder, exist_ok=True)
     file.save(os.path.join(upload_folder, filename))
     return filename
+
+
+def _question_image_export_name(question, original_filename):
+    """Create a deterministic, human-readable image filename for exports."""
+    _, ext = os.path.splitext(os.path.basename(original_filename or ''))
+    ext = ext.lower() or '.img'
+    text_stub = secure_filename((question.text or '')[:60]).strip('._-')
+    if not text_stub:
+        text_stub = 'questao'
+    return f'q{question.id:05d}_{text_stub}{ext}'
+
+
+def _subject_yaml_filename(subject):
+    base = secure_filename(subject.name or f'materia_{subject.id}')
+    if not base:
+        base = f'materia_{subject.id}'
+    return f'{base}_questoes.yaml'
+
+
+def _subject_package_zip_filename(subject):
+    base = secure_filename(subject.name or f'materia_{subject.id}')
+    if not base:
+        base = f'materia_{subject.id}'
+    return f'{base}_pacote_questoes.zip'
+
+
+def _build_subject_questions_payload(subject, questions):
+    payload = {
+        'subject': {
+            'id': subject.id,
+            'name': subject.name,
+            'description': subject.description or '',
+        },
+        'questions': [],
+    }
+
+    for question in questions:
+        options = question.answer_options.order_by(AnswerOption.id.asc()).all()
+        correct_idx = 1
+        for idx, opt in enumerate(options, start=1):
+            if opt.is_correct:
+                correct_idx = idx
+                break
+
+        item = {
+            'id': question.id,
+            'text': question.text,
+            'explanation': question.explanation or '',
+            'correct': correct_idx,
+            'options': [opt.text for opt in options],
+        }
+
+        if question.image_path:
+            item['image_file'] = _question_image_export_name(question, question.image_path)
+
+        payload['questions'].append(item)
+
+    return payload
 
 
 # ─── Dashboard ────────────────────────────────────────────────────────────────
@@ -143,6 +203,59 @@ def delete_subject(subject_id):
     db.session.commit()
     flash(f'Matéria "{subject.name}" excluída.', 'success')
     return redirect(url_for('teacher.subjects'))
+
+
+@bp.route('/materias/<int:subject_id>/exportar/pacote')
+@login_required
+@teacher_required
+def export_subject_package(subject_id):
+    subject = Subject.query.get_or_404(subject_id)
+    if subject.created_by != current_user.id:
+        abort(403)
+
+    questions = Question.query.filter_by(subject_id=subject.id, created_by=current_user.id)\
+        .order_by(Question.id.asc()).all()
+
+    payload = _build_subject_questions_payload(subject, questions)
+    yaml_filename = _subject_yaml_filename(subject)
+
+    memory_file = io.BytesIO()
+    with zipfile.ZipFile(memory_file, mode='w', compression=zipfile.ZIP_DEFLATED) as zf:
+        zf.writestr(
+            yaml_filename,
+            yaml.safe_dump(payload, allow_unicode=True, sort_keys=False),
+        )
+
+        for question in questions:
+            if not question.image_path:
+                continue
+            source_path = os.path.join(current_app.config['UPLOAD_FOLDER'], question.image_path)
+            if not os.path.exists(source_path):
+                continue
+            export_name = _question_image_export_name(question, question.image_path)
+            zf.write(source_path, arcname=f'images/{export_name}')
+
+    memory_file.seek(0)
+    zip_filename = _subject_package_zip_filename(subject)
+    return Response(
+        memory_file.getvalue(),
+        mimetype='application/zip',
+        headers={'Content-Disposition': f'attachment; filename="{zip_filename}"'},
+    )
+
+
+@bp.route('/materias/<int:subject_id>/exportar/yaml')
+@login_required
+@teacher_required
+def export_subject_yaml(subject_id):
+    return redirect(url_for('teacher.export_subject_package', subject_id=subject_id))
+
+
+@bp.route('/materias/<int:subject_id>/exportar/imagens')
+@login_required
+@teacher_required
+def export_subject_images(subject_id):
+    return redirect(url_for('teacher.export_subject_package', subject_id=subject_id))
 
 
 # ─── Questions ────────────────────────────────────────────────────────────────
@@ -518,6 +631,56 @@ def attempt_details(attempt_id):
 _YAML_REQUIRED_OPTIONS = 5
 
 
+def _extract_package_yaml_and_images(raw_zip_bytes):
+    """Read a ZIP package and return (yaml_bytes, images_map)."""
+    try:
+        memory = io.BytesIO(raw_zip_bytes)
+        zf = zipfile.ZipFile(memory)
+    except zipfile.BadZipFile as exc:
+        raise ValueError('Pacote ZIP inválido ou corrompido.') from exc
+
+    with zf:
+        names = [n for n in zf.namelist() if not n.endswith('/')]
+        yaml_candidates = [n for n in names if n.lower().endswith(('.yaml', '.yml'))]
+        if not yaml_candidates:
+            raise ValueError('O pacote ZIP deve conter um arquivo YAML com as questões.')
+
+        preferred = sorted(
+            yaml_candidates,
+            key=lambda n: (0 if 'quest' in os.path.basename(n).lower() else 1, len(n)),
+        )[0]
+
+        yaml_bytes = zf.read(preferred)
+        images = {}
+        for name in names:
+            base = os.path.basename(name)
+            if not base:
+                continue
+            ext = os.path.splitext(base)[1].lower().lstrip('.')
+            if ext not in current_app.config.get('ALLOWED_EXTENSIONS',
+                                                 {'png', 'jpg', 'jpeg', 'gif', 'webp'}):
+                continue
+            images[base.lower()] = zf.read(name)
+
+        return yaml_bytes, images
+
+
+def _save_imported_image_bytes(original_name, content_bytes):
+    """Persist imported image bytes into upload folder with a unique filename."""
+    ext = os.path.splitext(os.path.basename(original_name or ''))[1].lower().lstrip('.')
+    allowed = current_app.config.get('ALLOWED_EXTENSIONS', {'png', 'jpg', 'jpeg', 'gif', 'webp'})
+    if ext not in allowed:
+        raise ValueError(f'Extensão de imagem não permitida: .{ext}')
+
+    filename = f"{uuid.uuid4().hex}.{ext}"
+    upload_folder = current_app.config['UPLOAD_FOLDER']
+    os.makedirs(upload_folder, exist_ok=True)
+    file_path = os.path.join(upload_folder, filename)
+    with open(file_path, 'wb') as img_file:
+        img_file.write(content_bytes)
+    return filename
+
+
 def _parse_yaml_questions(raw_bytes):
     """Parse and validate YAML bytes; return list of validated question dicts.
 
@@ -527,7 +690,8 @@ def _parse_yaml_questions(raw_bytes):
           - text: "Enunciado da questão"
             explanation: "Explicação opcional"   # optional
             correct: 1                           # 1-indexed (1–5)
-            options:
+                        image_file: "q00001_enunciado.png"  # optional (must exist in ZIP)
+                        options:
               - "Opção A"
               - "Opção B"
               - "Opção C"
@@ -585,10 +749,12 @@ def _parse_yaml_questions(raw_bytes):
             )
 
         explanation = str(item.get('explanation', '') or '').strip()
+        image_file = str(item.get('image_file', '') or '').strip()
 
         parsed.append({
             'text': text,
             'explanation': explanation,
+            'image_file': image_file,
             'options': options,
             'correct_idx': correct_idx - 1,  # convert to 0-based
         })
@@ -613,20 +779,46 @@ def import_questions():
         if not subject or subject.created_by != current_user.id:
             abort(403)
 
-        raw_bytes = form.yaml_file.data.read()
+        package_raw = form.package_file.data.read()
+
         try:
-            parsed = _parse_yaml_questions(raw_bytes)
+            yaml_bytes, package_images = _extract_package_yaml_and_images(package_raw)
+        except ValueError as exc:
+            flash(str(exc), 'danger')
+            return render_template('teacher/import_questions.html',
+                                   title='Importar Questões', form=form)
+
+        try:
+            parsed = _parse_yaml_questions(yaml_bytes)
         except ValueError as exc:
             flash(str(exc), 'danger')
             return render_template('teacher/import_questions.html',
                                    title='Importar Questões', form=form)
 
         imported = 0
+        images_imported = 0
+        images_missing = 0
+        images_invalid = 0
+
         for q_data in parsed:
+            image_path = None
+            image_file_name = os.path.basename(q_data.get('image_file', '')).strip()
+            if image_file_name:
+                image_bytes = package_images.get(image_file_name.lower())
+                if image_bytes is None:
+                    images_missing += 1
+                else:
+                    try:
+                        image_path = _save_imported_image_bytes(image_file_name, image_bytes)
+                        images_imported += 1
+                    except ValueError:
+                        images_invalid += 1
+
             question = Question(
                 subject_id=subject.id,
                 text=q_data['text'],
                 explanation=q_data['explanation'] or None,
+                image_path=image_path,
                 created_by=current_user.id,
             )
             db.session.add(question)
@@ -644,7 +836,10 @@ def import_questions():
 
         db.session.commit()
         flash(
-            f'{imported} questão(ões) importada(s) com sucesso para "{subject.name}"!',
+            f'{imported} questão(ões) importada(s) para "{subject.name}". '
+            f'Imagens importadas: {images_imported}. '
+            f'Não encontradas: {images_missing}. '
+            f'Inválidas: {images_invalid}.',
             'success',
         )
         return redirect(url_for('teacher.questions', subject_id=subject.id))
@@ -664,15 +859,18 @@ def import_questions():
 def yaml_template():
     """Return a sample YAML file so teachers know the expected format."""
     sample = (
-        "# Modelo de importação de questões - TestPracticeTool\n"
+        "# Modelo de questões para pacote ZIP de migração - TestPracticeTool\n"
         "#\n"
         "# Regras:\n"
+        "#   - Este YAML deve estar dentro de um arquivo .zip junto das imagens.\n"
         "#   - Cada questão deve ter exatamente 5 opções.\n"
         "#   - O campo 'correct' indica o número da opção correta (1 a 5).\n"
+        "#   - O campo 'image_file' é opcional e deve apontar para uma imagem no ZIP.\n"
         "#   - O campo 'explanation' é opcional (aparece apenas no gabarito).\n"
         "\n"
         "questions:\n"
         "  - text: \"Qual é o resultado de 2 + 2?\"\n"
+        "    image_file: \"q00001_soma.png\"\n"
         "    explanation: \"A soma de 2 com 2 é igual a 4.\"\n"
         "    correct: 3\n"
         "    options:\n"

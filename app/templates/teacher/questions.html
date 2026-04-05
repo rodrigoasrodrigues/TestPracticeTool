@@ -11,8 +11,14 @@
         <div class="d-flex gap-2">
             <a href="{{ url_for('teacher.import_questions', subject_id=selected_subject) if selected_subject else url_for('teacher.import_questions') }}"
                class="btn btn-outline-success">
-                <i class="bi bi-file-earmark-arrow-up me-1"></i>Importar YAML
+                <i class="bi bi-file-earmark-zip me-1"></i>Importar ZIP
             </a>
+            {% if selected_subject %}
+            <a href="{{ url_for('teacher.export_subject_package', subject_id=selected_subject) }}"
+               class="btn btn-outline-info">
+                <i class="bi bi-file-earmark-zip me-1"></i>Exportar ZIP
+            </a>
+            {% endif %}
             <a href="{{ url_for('teacher.create_question') }}" class="btn btn-success">
                 <i class="bi bi-plus-lg me-1"></i>Nova Questão
             </a>
