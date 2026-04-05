@@ -1,0 +1,116 @@
+{% extends "base.html" %}
+{% block title %}{{ title }} - TestPracticeTool{% endblock %}
+
+{% block content %}
+<div class="container">
+    <div class="d-flex align-items-center mb-4">
+        <a href="{{ url_for('teacher.questions') }}" class="btn btn-sm btn-outline-secondary me-3">
+            <i class="bi bi-arrow-left"></i>
+        </a>
+        <div>
+            <h1 class="mb-0"><i class="bi bi-file-earmark-arrow-up text-success me-2"></i>Importar Questões</h1>
+            <small class="text-muted">Importe questões em lote a partir de um arquivo YAML.</small>
+        </div>
+    </div>
+
+    <div class="row g-4">
+        <!-- Upload form -->
+        <div class="col-lg-6">
+            <div class="card shadow-sm h-100">
+                <div class="card-header bg-transparent">
+                    <h5 class="mb-0"><i class="bi bi-upload me-2"></i>Enviar Arquivo</h5>
+                </div>
+                <div class="card-body p-4">
+                    <form method="POST" enctype="multipart/form-data">
+                        {{ form.hidden_tag() }}
+
+                        <div class="mb-4">
+                            {{ form.subject_id.label(class="form-label fw-semibold") }}
+                            {{ form.subject_id(class="form-select" + (" is-invalid" if form.subject_id.errors else "")) }}
+                            {% for error in form.subject_id.errors %}
+                            <div class="invalid-feedback">{{ error }}</div>
+                            {% endfor %}
+                        </div>
+
+                        <div class="mb-4">
+                            {{ form.yaml_file.label(class="form-label fw-semibold") }}
+                            {{ form.yaml_file(class="form-control" + (" is-invalid" if form.yaml_file.errors else ""),
+                               accept=".yaml,.yml") }}
+                            {% for error in form.yaml_file.errors %}
+                            <div class="invalid-feedback">{{ error }}</div>
+                            {% endfor %}
+                            <div class="form-text">
+                                Apenas arquivos <code>.yaml</code> ou <code>.yml</code>.
+                                Tamanho máximo: 16 MB.
+                            </div>
+                        </div>
+
+                        <div class="d-flex gap-2">
+                            {{ form.submit(class="btn btn-success") }}
+                            <a href="{{ url_for('teacher.questions') }}" class="btn btn-outline-secondary">Cancelar</a>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+
+        <!-- Format reference -->
+        <div class="col-lg-6">
+            <div class="card shadow-sm h-100">
+                <div class="card-header bg-transparent d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0"><i class="bi bi-code-square me-2"></i>Formato do Arquivo</h5>
+                    <a href="{{ url_for('teacher.yaml_template') }}" class="btn btn-sm btn-outline-secondary">
+                        <i class="bi bi-download me-1"></i>Baixar modelo
+                    </a>
+                </div>
+                <div class="card-body p-4">
+                    <pre class="bg-light rounded p-3 small mb-3" style="overflow-x:auto"><code># Modelo de questões
+questions:
+  - text: "Enunciado da questão"
+    explanation: "Explicação (só no gabarito)"  # opcional
+    correct: 3          # número da opção correta (1–5)
+    options:
+      - "Opção A"
+      - "Opção B"
+      - "Opção C"      # correta (correct: 3)
+      - "Opção D"
+      - "Opção E"
+
+  - text: "Segunda questão..."
+    correct: 1
+    options:
+      - "Opção A"      # correta (correct: 1)
+      - "Opção B"
+      - "Opção C"
+      - "Opção D"
+      - "Opção E"</code></pre>
+
+                    <h6 class="fw-semibold mb-2">Regras</h6>
+                    <ul class="list-unstyled small mb-0">
+                        <li class="mb-1">
+                            <i class="bi bi-check-circle-fill text-success me-1"></i>
+                            Cada questão precisa de exatamente <strong>5 opções</strong>.
+                        </li>
+                        <li class="mb-1">
+                            <i class="bi bi-check-circle-fill text-success me-1"></i>
+                            <code>correct</code> é o número (1–5) da opção correta.
+                        </li>
+                        <li class="mb-1">
+                            <i class="bi bi-check-circle-fill text-success me-1"></i>
+                            <code>explanation</code> é opcional e aparece apenas no gabarito.
+                        </li>
+                        <li class="mb-1">
+                            <i class="bi bi-check-circle-fill text-success me-1"></i>
+                            O arquivo deve começar com a chave raiz <code>questions:</code>.
+                        </li>
+                        <li>
+                            <i class="bi bi-check-circle-fill text-success me-1"></i>
+                            Extensões aceitas: <code>.yaml</code> ou <code>.yml</code>.
+                        </li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

@@ -1,0 +1,75 @@
+{% extends "base.html" %}
+{% block title %}Provas - TestPracticeTool{% endblock %}
+
+{% block content %}
+<div class="container">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div class="d-flex align-items-center">
+            <i class="bi bi-file-earmark-text text-warning fs-3 me-2"></i>
+            <h1 class="mb-0">Provas</h1>
+        </div>
+        <a href="{{ url_for('teacher.create_exam') }}" class="btn btn-warning">
+            <i class="bi bi-plus-lg me-1"></i>Nova Prova
+        </a>
+    </div>
+
+    {% if exams %}
+    <div class="row g-3">
+        {% for exam in exams %}
+        <div class="col-md-6 col-lg-4">
+            <div class="card shadow-sm h-100">
+                <div class="card-body">
+                    <h5 class="card-title">{{ exam.title }}</h5>
+                    {% if exam.description %}
+                    <p class="card-text text-muted small">{{ exam.description }}</p>
+                    {% endif %}
+                    <div class="text-muted small mb-2">
+                        <i class="bi bi-list-ol me-1"></i>{{ exam.total_questions() }} questões
+                    </div>
+                    <div class="text-muted small">
+                        <i class="bi bi-calendar me-1"></i>{{ exam.created_at.strftime('%d/%m/%Y') }}
+                    </div>
+                </div>
+                <div class="card-footer bg-transparent">
+                    <div class="d-flex flex-wrap gap-1">
+                        <a href="{{ url_for('teacher.view_exam', exam_id=exam.id) }}"
+                           class="btn btn-sm btn-outline-primary" title="Visualizar">
+                            <i class="bi bi-eye me-1"></i>Ver
+                        </a>
+                        <a href="{{ url_for('teacher.exam_answer_key', exam_id=exam.id) }}"
+                           class="btn btn-sm btn-outline-info" title="Gabarito">
+                            <i class="bi bi-check2-square me-1"></i>Gabarito
+                        </a>
+                        <a href="{{ url_for('teacher.assign_exam', exam_id=exam.id) }}"
+                           class="btn btn-sm btn-outline-success" title="Atribuir">
+                            <i class="bi bi-person-plus me-1"></i>Atribuir
+                        </a>
+                        <a href="{{ url_for('teacher.exam_students', exam_id=exam.id) }}"
+                           class="btn btn-sm btn-outline-secondary" title="Alunos">
+                            <i class="bi bi-people me-1"></i>Alunos
+                        </a>
+                        <form method="POST"
+                              action="{{ url_for('teacher.delete_exam', exam_id=exam.id) }}"
+                              onsubmit="return confirm('Excluir a prova {{ exam.title }}?')">
+                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                            <button type="submit" class="btn btn-sm btn-outline-danger" title="Excluir">
+                                <i class="bi bi-trash"></i>
+                            </button>
+                        </form>
+                    </div>
+                </div>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+    {% else %}
+    <div class="text-center py-5 text-muted">
+        <i class="bi bi-file-earmark-x fs-1 d-block mb-3"></i>
+        <h4>Nenhuma prova criada ainda.</h4>
+        <a href="{{ url_for('teacher.create_exam') }}" class="btn btn-warning mt-2">
+            <i class="bi bi-plus-lg me-1"></i>Criar primeira prova
+        </a>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}

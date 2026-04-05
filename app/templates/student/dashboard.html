@@ -1,0 +1,119 @@
+{% extends "base.html" %}
+{% block title %}Minhas Provas - TestPracticeTool{% endblock %}
+
+{% block content %}
+<div class="container">
+    <div class="d-flex align-items-center mb-4">
+        <i class="bi bi-journal-check text-primary fs-3 me-2"></i>
+        <div>
+            <h1 class="mb-0">Minhas Provas</h1>
+            <small class="text-muted">Bem-vindo(a), {{ current_user.username }}!</small>
+        </div>
+    </div>
+
+    {% if assignments %}
+    <div class="row g-3">
+        {% for assignment in assignments %}
+        {% set can, msg = assignment.can_attempt() %}
+        {% set best = assignment.best_score() %}
+        {% set completed_count = assignment.attempts.filter_by(completed_at=None).count() %}
+        <div class="col-md-6 col-lg-4">
+            <div class="card shadow-sm h-100">
+                <div class="card-header bg-transparent">
+                    <h5 class="card-title mb-0">{{ assignment.exam.title }}</h5>
+                </div>
+                <div class="card-body">
+                    {% if assignment.exam.description %}
+                    <p class="text-muted small mb-3">{{ assignment.exam.description }}</p>
+                    {% endif %}
+
+                    <div class="row g-2 text-center mb-3">
+                        <div class="col-4">
+                            <div class="bg-light rounded p-2">
+                                <div class="fw-bold">{{ assignment.exam.total_questions() }}</div>
+                                <small class="text-muted">Questões</small>
+                            </div>
+                        </div>
+                        <div class="col-4">
+                            <div class="bg-light rounded p-2">
+                                <div class="fw-bold">
+                                    {% if assignment.time_limit_minutes %}
+                                    {{ assignment.time_limit_minutes }}min
+                                    {% else %}∞{% endif %}
+                                </div>
+                                <small class="text-muted">Tempo</small>
+                            </div>
+                        </div>
+                        <div class="col-4">
+                            <div class="bg-light rounded p-2">
+                                <div class="fw-bold">
+                                    {{ assignment.attempt_count() }}/{{ assignment.max_attempts }}
+                                </div>
+                                <small class="text-muted">Tentativas</small>
+                            </div>
+                        </div>
+                    </div>
+
+                    {% if best is not none %}
+                    <div class="text-center mb-3">
+                        <span class="fs-4 fw-bold {{ 'text-success' if best >= 60 else 'text-danger' }}">
+                            {{ best }}%
+                        </span>
+                        <small class="text-muted d-block">Melhor nota</small>
+                    </div>
+                    {% endif %}
+
+                    {% if assignment.available_from or assignment.available_until %}
+                    <div class="text-muted small mb-2">
+                        {% if assignment.available_from %}
+                        <i class="bi bi-calendar-event me-1"></i>
+                        Início: {{ assignment.available_from.strftime('%d/%m/%Y %H:%M') }}<br>
+                        {% endif %}
+                        {% if assignment.available_until %}
+                        <i class="bi bi-calendar-x me-1"></i>
+                        Prazo: {{ assignment.available_until.strftime('%d/%m/%Y %H:%M') }}
+                        {% endif %}
+                    </div>
+                    {% endif %}
+                </div>
+                <div class="card-footer bg-transparent">
+                    {% if can %}
+                    <a href="{{ url_for('student.start_exam', assignment_id=assignment.id) }}"
+                       class="btn btn-primary w-100">
+                        <i class="bi bi-play-fill me-1"></i>Iniciar Prova
+                    </a>
+                    {% else %}
+                    <button class="btn btn-secondary w-100" disabled title="{{ msg }}">
+                        <i class="bi bi-lock me-1"></i>
+                        {% if assignment.attempt_count() >= assignment.max_attempts %}
+                        Tentativas Esgotadas
+                        {% else %}
+                        Indisponível
+                        {% endif %}
+                    </button>
+                    {% if assignment.attempt_count() > 0 %}
+                    <div class="mt-2">
+                        {% set last_attempt = assignment.get_last_completed_attempt() %}
+                        {% if last_attempt %}
+                        <a href="{{ url_for('student.exam_result', attempt_id=last_attempt.id) }}"
+                           class="btn btn-outline-info w-100 btn-sm">
+                            <i class="bi bi-eye me-1"></i>Ver Último Resultado
+                        </a>
+                        {% endif %}
+                    </div>
+                    {% endif %}
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+    {% else %}
+    <div class="text-center py-5 text-muted">
+        <i class="bi bi-inbox fs-1 d-block mb-3"></i>
+        <h4>Nenhuma prova atribuída a você ainda.</h4>
+        <p>Aguarde seu professor atribuir uma prova.</p>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}

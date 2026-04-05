@@ -1,0 +1,145 @@
+{% extends "base.html" %}
+{% block title %}{{ title }} - TestPracticeTool{% endblock %}
+
+{% block extra_css %}
+<style>
+.question-card {
+    scroll-margin-top: 80px;
+}
+.option-label {
+    cursor: pointer;
+    transition: background-color 0.15s;
+}
+.option-label:hover {
+    background-color: #f0f4ff;
+}
+.option-input:checked + .option-label {
+    background-color: #e8f0fe;
+    border-color: #4285f4 !important;
+    font-weight: 600;
+}
+#timer-bar {
+    position: sticky;
+    top: 56px;
+    z-index: 100;
+}
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid px-3">
+    {% if time_limit %}
+    <div id="timer-bar" class="bg-white border-bottom shadow-sm py-2 px-3 mb-3">
+        <div class="d-flex align-items-center justify-content-between">
+            <span class="fw-semibold">{{ exam.title }}</span>
+            <div class="d-flex align-items-center gap-2">
+                <i class="bi bi-clock-fill text-warning"></i>
+                <span id="timer-display" class="fs-5 fw-bold text-warning"></span>
+            </div>
+        </div>
+        <div class="progress mt-1" style="height: 4px;">
+            <div id="timer-progress" class="progress-bar bg-warning" role="progressbar"
+                 style="width: 100%"></div>
+        </div>
+    </div>
+    {% else %}
+    <div class="d-flex justify-content-between align-items-center mb-3">
+        <h4 class="mb-0">{{ exam.title }}</h4>
+        <span class="text-muted small">{{ questions|length }} questões</span>
+    </div>
+    {% endif %}
+
+    <form method="POST" action="{{ url_for('student.submit_exam', attempt_id=attempt.id) }}"
+          id="examForm" onsubmit="return confirmSubmit()">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
+        {% for eq in questions %}
+        <div class="card shadow-sm mb-4 question-card" id="q{{ eq.id }}">
+            <div class="card-header bg-light d-flex justify-content-between">
+                <span class="fw-semibold">Questão {{ loop.index }} de {{ questions|length }}</span>
+                <span class="badge bg-primary-subtle text-primary">{{ eq.question.subject.name }}</span>
+            </div>
+            <div class="card-body">
+                <p class="mb-3 fs-5">{{ eq.question.text }}</p>
+                {% if eq.question.image_path %}
+                <div class="mb-3">
+                    <img src="{{ url_for('static', filename='uploads/' + eq.question.image_path) }}"
+                         class="img-fluid rounded" style="max-height: 300px;" alt="Imagem da questão">
+                </div>
+                {% endif %}
+
+                <div class="d-flex flex-column gap-2">
+                    {% for option in eq.options %}
+                    <div>
+                        <input type="radio"
+                               class="option-input d-none"
+                               name="question_{{ eq.id }}"
+                               id="opt_{{ option.id }}"
+                               value="{{ option.answer_option_id }}"
+                               {{ 'checked' if existing_answers.get(eq.id) == option.answer_option_id else '' }}>
+                        <label for="opt_{{ option.id }}"
+                               class="option-label d-flex align-items-start gap-3 border rounded p-3 w-100">
+                            <span class="badge bg-secondary flex-shrink-0 mt-1">{{ loop.index }}</span>
+                            <span>{{ option.answer_option.text }}</span>
+                        </label>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+        {% endfor %}
+
+        <div class="card shadow-sm mb-4">
+            <div class="card-body text-center">
+                <p class="text-muted mb-3">
+                    <i class="bi bi-info-circle me-1"></i>
+                    Revise suas respostas antes de enviar. Esta ação não pode ser desfeita.
+                </p>
+                <button type="submit" class="btn btn-success btn-lg px-5">
+                    <i class="bi bi-send-fill me-2"></i>Enviar Prova
+                </button>
+            </div>
+        </div>
+    </form>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+{% if time_limit %}
+const totalSeconds = {{ time_limit }} * 60;
+let remaining = totalSeconds;
+const timerDisplay = document.getElementById('timer-display');
+const timerProgress = document.getElementById('timer-progress');
+const form = document.getElementById('examForm');
+
+function updateTimer() {
+    if (remaining <= 0) {
+        timerDisplay.textContent = '00:00';
+        form.submit();
+        return;
+    }
+    remaining--;
+    const mins = Math.floor(remaining / 60);
+    const secs = remaining % 60;
+    timerDisplay.textContent = `${String(mins).padStart(2,'0')}:${String(secs).padStart(2,'0')}`;
+    const pct = (remaining / totalSeconds) * 100;
+    timerProgress.style.width = pct + '%';
+
+    if (remaining <= 60) {
+        timerDisplay.classList.remove('text-warning');
+        timerDisplay.classList.add('text-danger');
+        timerProgress.classList.remove('bg-warning');
+        timerProgress.classList.add('bg-danger');
+    }
+}
+
+updateTimer();
+setInterval(updateTimer, 1000);
+{% endif %}
+
+function confirmSubmit() {
+    return confirm('Tem certeza que deseja enviar a prova? Esta ação não pode ser desfeita.');
+}
+</script>
+{% endblock %}

@@ -1,0 +1,54 @@
+{% extends "base.html" %}
+{% block title %}{{ title }} - TestPracticeTool{% endblock %}
+
+{% block content %}
+<div class="container">
+    <div class="d-flex align-items-center mb-4">
+        <a href="{{ url_for('teacher.view_exam', exam_id=exam.id) }}" class="btn btn-sm btn-outline-secondary me-3">
+            <i class="bi bi-arrow-left"></i>
+        </a>
+        <div>
+            <h1 class="mb-0">
+                <i class="bi bi-check2-square text-info me-2"></i>Gabarito
+            </h1>
+            <p class="text-muted mb-0">{{ exam.title }}</p>
+        </div>
+    </div>
+
+    {% for eq in questions %}
+    <div class="card shadow-sm mb-4">
+        <div class="card-header bg-light d-flex justify-content-between">
+            <span class="fw-semibold">Questão {{ loop.index }}</span>
+            <span class="badge bg-primary-subtle text-primary">{{ eq.question.subject.name }}</span>
+        </div>
+        <div class="card-body">
+            <p class="mb-3">{{ eq.question.text }}</p>
+            {% if eq.question.image_path %}
+            <div class="mb-3">
+                <img src="{{ url_for('static', filename='uploads/' + eq.question.image_path) }}"
+                     class="img-fluid rounded" style="max-height: 200px;" alt="Imagem da questão">
+            </div>
+            {% endif %}
+            <ul class="list-group list-group-flush mb-3">
+                {% for option in eq.options %}
+                <li class="list-group-item {{ 'list-group-item-success' if option.answer_option.is_correct else '' }}">
+                    <span class="badge bg-secondary me-2">{{ loop.index }}</span>
+                    {{ option.answer_option.text }}
+                    {% if option.answer_option.is_correct %}
+                    <span class="badge bg-success ms-2">CORRETA</span>
+                    {% endif %}
+                </li>
+                {% endfor %}
+            </ul>
+
+            {% if eq.question.explanation %}
+            <div class="alert alert-info mb-0">
+                <i class="bi bi-lightbulb-fill me-2"></i>
+                <strong>Explicação:</strong> {{ eq.question.explanation }}
+            </div>
+            {% endif %}
+        </div>
+    </div>
+    {% endfor %}
+</div>
+{% endblock %}

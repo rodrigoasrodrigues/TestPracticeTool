@@ -1,0 +1,94 @@
+{% extends "base.html" %}
+{% block title %}{{ title }} - TestPracticeTool{% endblock %}
+
+{% block content %}
+<div class="container">
+    <div class="d-flex align-items-center mb-4">
+        <a href="{{ url_for('teacher.view_exam', exam_id=exam.id) }}" class="btn btn-sm btn-outline-secondary me-3">
+            <i class="bi bi-arrow-left"></i>
+        </a>
+        <div>
+            <h1 class="mb-0"><i class="bi bi-people me-2"></i>Alunos</h1>
+            <p class="text-muted mb-0">{{ exam.title }}</p>
+        </div>
+        <a href="{{ url_for('teacher.assign_exam', exam_id=exam.id) }}" class="btn btn-success ms-auto">
+            <i class="bi bi-person-plus me-1"></i>Atribuir a Aluno
+        </a>
+    </div>
+
+    {% if assignments %}
+    <div class="card shadow-sm">
+        <div class="table-responsive">
+            <table class="table table-hover align-middle mb-0">
+                <thead class="table-light">
+                    <tr>
+                        <th>Aluno</th>
+                        <th>Max. Tentativas</th>
+                        <th>Tentativas Realizadas</th>
+                        <th>Melhor Nota</th>
+                        <th>Tempo Limite</th>
+                        <th>Disponível</th>
+                        <th>Ações</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for assignment in assignments %}
+                    <tr>
+                        <td>
+                            <strong>{{ assignment.student.username }}</strong>
+                            <small class="text-muted d-block">{{ assignment.student.email }}</small>
+                        </td>
+                        <td>{{ assignment.max_attempts }}</td>
+                        <td>
+                            {{ assignment.attempt_count() }}
+                        </td>
+                        <td>
+                            {% set best = assignment.best_score() %}
+                            {% if best is not none %}
+                            <span class="badge {{ 'bg-success' if best >= 60 else 'bg-danger' }} fs-6">
+                                {{ best }}%
+                            </span>
+                            {% else %}
+                            <span class="text-muted">—</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            {% if assignment.time_limit_minutes %}
+                            {{ assignment.time_limit_minutes }} min
+                            {% else %}
+                            <span class="text-muted">Sem limite</span>
+                            {% endif %}
+                        </td>
+                        <td class="small">
+                            {% if assignment.available_from %}
+                            De {{ assignment.available_from.strftime('%d/%m/%Y %H:%M') }}<br>
+                            {% endif %}
+                            {% if assignment.available_until %}
+                            Até {{ assignment.available_until.strftime('%d/%m/%Y %H:%M') }}
+                            {% else %}
+                            Sem prazo
+                            {% endif %}
+                        </td>
+                        <td>
+                            <a href="{{ url_for('teacher.student_attempts', exam_id=exam.id, student_id=assignment.student_id) }}"
+                               class="btn btn-sm btn-outline-primary">
+                                <i class="bi bi-journal-text me-1"></i>Tentativas
+                            </a>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+    {% else %}
+    <div class="text-center py-5 text-muted">
+        <i class="bi bi-people fs-1 d-block mb-3"></i>
+        <h4>Nenhum aluno atribuído a esta prova ainda.</h4>
+        <a href="{{ url_for('teacher.assign_exam', exam_id=exam.id) }}" class="btn btn-success mt-2">
+            <i class="bi bi-person-plus me-1"></i>Atribuir primeiro aluno
+        </a>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}

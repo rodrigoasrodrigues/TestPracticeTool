@@ -1,0 +1,93 @@
+{% extends "base.html" %}
+{% block title %}{{ title }} - TestPracticeTool{% endblock %}
+
+{% block content %}
+<div class="container">
+    <div class="d-flex align-items-center mb-4">
+        <a href="{{ url_for('teacher.questions') }}" class="btn btn-sm btn-outline-secondary me-3">
+            <i class="bi bi-arrow-left"></i>
+        </a>
+        <h1 class="mb-0">{{ title }}</h1>
+    </div>
+
+    <div class="row justify-content-center">
+        <div class="col-lg-8">
+            <div class="card shadow-sm">
+                <div class="card-body p-4">
+                    <form method="POST" enctype="multipart/form-data">
+                        {{ form.hidden_tag() }}
+
+                        <div class="mb-3">
+                            {{ form.subject_id.label(class="form-label fw-semibold") }}
+                            {{ form.subject_id(class="form-select" + (" is-invalid" if form.subject_id.errors else "")) }}
+                            {% for error in form.subject_id.errors %}
+                            <div class="invalid-feedback">{{ error }}</div>
+                            {% endfor %}
+                        </div>
+
+                        <div class="mb-3">
+                            {{ form.text.label(class="form-label fw-semibold") }}
+                            {{ form.text(class="form-control" + (" is-invalid" if form.text.errors else ""),
+                               rows=4, placeholder="Digite o enunciado da questão...") }}
+                            {% for error in form.text.errors %}
+                            <div class="invalid-feedback">{{ error }}</div>
+                            {% endfor %}
+                        </div>
+
+                        <div class="mb-3">
+                            {{ form.image.label(class="form-label fw-semibold") }}
+                            {{ form.image(class="form-control") }}
+                            {% if question and question.image_path %}
+                            <div class="mt-2">
+                                <img src="{{ url_for('static', filename='uploads/' + question.image_path) }}"
+                                     class="img-thumbnail" style="max-height: 150px;" alt="Imagem atual">
+                                <small class="text-muted d-block mt-1">Imagem atual. Faça upload de uma nova para substituí-la.</small>
+                            </div>
+                            {% endif %}
+                        </div>
+
+                        <div class="mb-3">
+                            {{ form.explanation.label(class="form-label fw-semibold") }}
+                            <div class="text-muted small mb-1">
+                                <i class="bi bi-info-circle me-1"></i>
+                                Esta explicação só aparece no gabarito, não na prova.
+                            </div>
+                            {{ form.explanation(class="form-control", rows=3,
+                               placeholder="Explique por que a resposta está correta...") }}
+                        </div>
+
+                        <hr>
+                        <h6 class="fw-bold mb-3">
+                            <i class="bi bi-list-check me-1"></i>Opções de Resposta
+                        </h6>
+
+                        <div class="mb-2">
+                            {{ form.correct_option.label(class="form-label fw-semibold") }}
+                            {{ form.correct_option(class="form-select w-auto") }}
+                        </div>
+
+                        {% for i, field in [('A', form.option_1), ('B', form.option_2), ('C', form.option_3), ('D', form.option_4), ('E', form.option_5)] %}
+                        <div class="mb-3">
+                            <label class="form-label fw-semibold">
+                                <span class="badge bg-secondary me-1">{{ i }}</span>
+                                {{ field.label.text }}
+                            </label>
+                            {{ field(class="form-control" + (" is-invalid" if field.errors else ""),
+                               rows=2, placeholder="Opção {{ i }}...") }}
+                            {% for error in field.errors %}
+                            <div class="invalid-feedback">{{ error }}</div>
+                            {% endfor %}
+                        </div>
+                        {% endfor %}
+
+                        <div class="d-flex gap-2 mt-4">
+                            {{ form.submit(class="btn btn-success") }}
+                            <a href="{{ url_for('teacher.questions') }}" class="btn btn-outline-secondary">Cancelar</a>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
