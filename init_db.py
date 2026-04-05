@@ -18,7 +18,8 @@ with app.app_context():
         admin = User(
             username='admin',
             email='admin@example.com',
-            role='teacher'
+            role='teacher',
+            is_active=True
         )
         admin.set_password('admin123')
         db.session.add(admin)

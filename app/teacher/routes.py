@@ -17,7 +17,9 @@ def teacher_required(f):
     from functools import wraps
     @wraps(f)
     def decorated_function(*args, **kwargs):
-        if not current_user.is_authenticated or not current_user.is_teacher():
+        if (not current_user.is_authenticated
+                or not current_user.is_teacher()
+                or not current_user.is_active):
             abort(403)
         return f(*args, **kwargs)
     return decorated_function
@@ -46,6 +48,7 @@ def dashboard():
     subjects_count = Subject.query.filter_by(created_by=current_user.id).count()
     questions_count = Question.query.filter_by(created_by=current_user.id).count()
     exams_count = Exam.query.filter_by(created_by=current_user.id).count()
+    pending_users_count = User.query.filter_by(is_active=False).count()
     recent_exams = Exam.query.filter_by(created_by=current_user.id)\
         .order_by(Exam.created_at.desc()).limit(5).all()
     return render_template('teacher/dashboard.html',
@@ -53,7 +56,33 @@ def dashboard():
                            subjects_count=subjects_count,
                            questions_count=questions_count,
                            exams_count=exams_count,
+                           pending_users_count=pending_users_count,
                            recent_exams=recent_exams)
+
+
+@bp.route('/usuarios/pendentes')
+@login_required
+@teacher_required
+def pending_users():
+    users = User.query.filter_by(is_active=False).order_by(User.created_at.asc()).all()
+    return render_template('teacher/pending_users.html',
+                           title='Aprovar Cadastros', users=users)
+
+
+@bp.route('/usuarios/<int:user_id>/aprovar', methods=['POST'])
+@login_required
+@teacher_required
+def approve_user(user_id):
+    user = User.query.get_or_404(user_id)
+
+    if user.is_active:
+        flash('Este usuário já está aprovado.', 'info')
+        return redirect(url_for('teacher.pending_users'))
+
+    user.is_active = True
+    db.session.commit()
+    flash(f'Usuário "{user.username}" aprovado com sucesso.', 'success')
+    return redirect(url_for('teacher.pending_users'))
 
 
 # ─── Subjects ─────────────────────────────────────────────────────────────────

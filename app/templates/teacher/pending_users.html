@@ -1,0 +1,68 @@
+{% extends "base.html" %}
+{% block title %}Aprovar Cadastros - TestPracticeTool{% endblock %}
+
+{% block content %}
+<div class="container">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h1 class="mb-0"><i class="bi bi-person-check me-2 text-primary"></i>Aprovar Cadastros</h1>
+            <small class="text-muted">Usuários aguardando liberação de acesso</small>
+        </div>
+        <a href="{{ url_for('teacher.dashboard') }}" class="btn btn-outline-secondary">
+            <i class="bi bi-arrow-left me-1"></i>Voltar ao Painel
+        </a>
+    </div>
+
+    <div class="card shadow-sm border-0">
+        <div class="card-body p-0">
+            {% if users %}
+            <div class="table-responsive">
+                <table class="table table-hover align-middle mb-0">
+                    <thead class="table-light">
+                        <tr>
+                            <th>Usuário</th>
+                            <th>E-mail</th>
+                            <th>Perfil</th>
+                            <th>Data do Cadastro</th>
+                            <th class="text-end">Ação</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for user in users %}
+                        <tr>
+                            <td class="fw-semibold">{{ user.username }}</td>
+                            <td>{{ user.email }}</td>
+                            <td>
+                                <span class="badge {{ 'bg-primary' if user.is_teacher() else 'bg-success' }}">
+                                    {{ 'Professor' if user.is_teacher() else 'Aluno' }}
+                                </span>
+                            </td>
+                            <td>
+                                {{ user.created_at.strftime('%d/%m/%Y %H:%M') if user.created_at else '-' }}
+                            </td>
+                            <td class="text-end">
+                                <form method="POST"
+                                      action="{{ url_for('teacher.approve_user', user_id=user.id) }}"
+                                      class="d-inline">
+                                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                    <button type="submit" class="btn btn-sm btn-success"
+                                            onclick="return confirm('Aprovar o acesso de {{ user.username }}?')">
+                                        <i class="bi bi-check2-circle me-1"></i>Aprovar
+                                    </button>
+                                </form>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            {% else %}
+            <div class="text-center py-5 text-muted">
+                <i class="bi bi-check2-all fs-1 d-block mb-2"></i>
+                Nenhum cadastro pendente no momento.
+            </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% endblock %}

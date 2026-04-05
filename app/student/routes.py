@@ -10,7 +10,9 @@ def student_required(f):
     from functools import wraps
     @wraps(f)
     def decorated_function(*args, **kwargs):
-        if not current_user.is_authenticated or not current_user.is_student():
+        if (not current_user.is_authenticated
+                or not current_user.is_student()
+                or not current_user.is_active):
             abort(403)
         return f(*args, **kwargs)
     return decorated_function
