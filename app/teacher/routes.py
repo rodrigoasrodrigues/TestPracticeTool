@@ -1,12 +1,14 @@
 import os
+import io
 import random
 import uuid
+import yaml
 from datetime import datetime
-from flask import render_template, redirect, url_for, flash, request, abort, current_app
+from flask import render_template, redirect, url_for, flash, request, abort, current_app, Response
 from flask_login import login_required, current_user
 from app import db
 from app.teacher import bp
-from app.teacher.forms import SubjectForm, QuestionForm, ExamForm, AssignExamForm
+from app.teacher.forms import SubjectForm, QuestionForm, ExamForm, AssignExamForm, ImportQuestionsForm
 from app.models import (Subject, Question, AnswerOption, Exam, ExamQuestion,
                         ExamQuestionOption, StudentExam, ExamAttempt, AttemptAnswer, User)
 
@@ -480,3 +482,188 @@ def attempt_details(attempt_id):
                            title='Detalhes da Tentativa',
                            attempt=attempt, exam=exam,
                            questions=questions_list, eq_map=eq_map)
+
+
+# ─── YAML Import ──────────────────────────────────────────────────────────────
+
+_YAML_REQUIRED_OPTIONS = 5
+
+
+def _parse_yaml_questions(raw_bytes):
+    """Parse and validate YAML bytes; return list of validated question dicts.
+
+    Expected format::
+
+        questions:
+          - text: "Enunciado da questão"
+            explanation: "Explicação opcional"   # optional
+            correct: 1                           # 1-indexed (1–5)
+            options:
+              - "Opção A"
+              - "Opção B"
+              - "Opção C"
+              - "Opção D"
+              - "Opção E"
+
+    Raises ValueError with a human-readable message on any structural problem.
+    """
+    try:
+        data = yaml.safe_load(raw_bytes)
+    except yaml.YAMLError as exc:
+        raise ValueError(f'Arquivo YAML inválido: {exc}') from exc
+
+    if not isinstance(data, dict) or 'questions' not in data:
+        raise ValueError("O arquivo deve conter uma chave raiz 'questions'.")
+
+    raw_questions = data['questions']
+    if not isinstance(raw_questions, list) or len(raw_questions) == 0:
+        raise ValueError("'questions' deve ser uma lista não vazia.")
+
+    parsed = []
+    for idx, item in enumerate(raw_questions, start=1):
+        prefix = f'Questão {idx}'
+        if not isinstance(item, dict):
+            raise ValueError(f'{prefix}: cada entrada deve ser um mapeamento YAML.')
+
+        # text
+        text = item.get('text', '').strip()
+        if not text:
+            raise ValueError(f'{prefix}: campo "text" é obrigatório e não pode ser vazio.')
+
+        # options
+        options = item.get('options')
+        if not isinstance(options, list) or len(options) != _YAML_REQUIRED_OPTIONS:
+            raise ValueError(
+                f'{prefix}: "options" deve ser uma lista com exatamente '
+                f'{_YAML_REQUIRED_OPTIONS} itens.'
+            )
+        options = [str(opt).strip() for opt in options]
+        if any(opt == '' for opt in options):
+            raise ValueError(f'{prefix}: nenhuma opção pode ser vazia.')
+
+        # correct
+        correct_raw = item.get('correct')
+        try:
+            correct_idx = int(correct_raw)
+        except (TypeError, ValueError):
+            raise ValueError(
+                f'{prefix}: "correct" deve ser um número inteiro de 1 a {_YAML_REQUIRED_OPTIONS}.'
+            )
+        if correct_idx < 1 or correct_idx > _YAML_REQUIRED_OPTIONS:
+            raise ValueError(
+                f'{prefix}: "correct" deve estar entre 1 e {_YAML_REQUIRED_OPTIONS} '
+                f'(recebido: {correct_idx}).'
+            )
+
+        explanation = str(item.get('explanation', '') or '').strip()
+
+        parsed.append({
+            'text': text,
+            'explanation': explanation,
+            'options': options,
+            'correct_idx': correct_idx - 1,  # convert to 0-based
+        })
+
+    return parsed
+
+
+@bp.route('/questoes/importar', methods=['GET', 'POST'])
+@login_required
+@teacher_required
+def import_questions():
+    form = ImportQuestionsForm()
+    subjects_list = Subject.query.filter_by(created_by=current_user.id).order_by(Subject.name).all()
+    form.subject_id.choices = [(s.id, s.name) for s in subjects_list]
+
+    if not subjects_list:
+        flash('Crie ao menos uma matéria antes de importar questões.', 'warning')
+        return redirect(url_for('teacher.create_subject'))
+
+    if form.validate_on_submit():
+        subject = db.session.get(Subject, form.subject_id.data)
+        if not subject or subject.created_by != current_user.id:
+            abort(403)
+
+        raw_bytes = form.yaml_file.data.read()
+        try:
+            parsed = _parse_yaml_questions(raw_bytes)
+        except ValueError as exc:
+            flash(str(exc), 'danger')
+            return render_template('teacher/import_questions.html',
+                                   title='Importar Questões', form=form)
+
+        imported = 0
+        for q_data in parsed:
+            question = Question(
+                subject_id=subject.id,
+                text=q_data['text'],
+                explanation=q_data['explanation'] or None,
+                created_by=current_user.id,
+            )
+            db.session.add(question)
+            db.session.flush()
+
+            for i, opt_text in enumerate(q_data['options']):
+                opt = AnswerOption(
+                    question_id=question.id,
+                    text=opt_text,
+                    is_correct=(i == q_data['correct_idx']),
+                )
+                db.session.add(opt)
+
+            imported += 1
+
+        db.session.commit()
+        flash(
+            f'{imported} questão(ões) importada(s) com sucesso para "{subject.name}"!',
+            'success',
+        )
+        return redirect(url_for('teacher.questions', subject_id=subject.id))
+
+    # Pre-select subject from query string (e.g. when coming from a subject card)
+    subject_id_qs = request.args.get('subject_id', type=int)
+    if subject_id_qs:
+        form.subject_id.data = subject_id_qs
+
+    return render_template('teacher/import_questions.html',
+                           title='Importar Questões', form=form)
+
+
+@bp.route('/questoes/importar/modelo')
+@login_required
+@teacher_required
+def yaml_template():
+    """Return a sample YAML file so teachers know the expected format."""
+    sample = (
+        "# Modelo de importação de questões - TestPracticeTool\n"
+        "#\n"
+        "# Regras:\n"
+        "#   - Cada questão deve ter exatamente 5 opções.\n"
+        "#   - O campo 'correct' indica o número da opção correta (1 a 5).\n"
+        "#   - O campo 'explanation' é opcional (aparece apenas no gabarito).\n"
+        "\n"
+        "questions:\n"
+        "  - text: \"Qual é o resultado de 2 + 2?\"\n"
+        "    explanation: \"A soma de 2 com 2 é igual a 4.\"\n"
+        "    correct: 3\n"
+        "    options:\n"
+        "      - \"2\"\n"
+        "      - \"3\"\n"
+        "      - \"4\"\n"
+        "      - \"5\"\n"
+        "      - \"6\"\n"
+        "\n"
+        "  - text: \"Qual planeta é conhecido como Planeta Vermelho?\"\n"
+        "    correct: 2\n"
+        "    options:\n"
+        "      - \"Vênus\"\n"
+        "      - \"Marte\"\n"
+        "      - \"Júpiter\"\n"
+        "      - \"Saturno\"\n"
+        "      - \"Mercúrio\"\n"
+    )
+    return Response(
+        sample,
+        mimetype='text/yaml',
+        headers={'Content-Disposition': 'attachment; filename="modelo_questoes.yaml"'},
+    )

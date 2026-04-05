@@ -66,3 +66,12 @@ class AssignExamForm(FlaskForm):
                                          format='%Y-%m-%dT%H:%M',
                                          validators=[Optional()])
     submit = SubmitField('Atribuir Prova')
+
+
+class ImportQuestionsForm(FlaskForm):
+    subject_id = SelectField('Matéria de destino', coerce=int, validators=[DataRequired()])
+    yaml_file = FileField('Arquivo YAML',
+                          validators=[DataRequired(),
+                                      FileAllowed(['yaml', 'yml'],
+                                                  'Apenas arquivos YAML (.yaml / .yml) são permitidos.')])
+    submit = SubmitField('Importar Questões')
