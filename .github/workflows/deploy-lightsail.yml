@@ -68,6 +68,12 @@ jobs:
       - name: Build Docker image
         run: docker build -t testpracticetool .
 
+      - name: Install Lightsail Control Plugin
+        run: |
+          curl "https://amazonaws.com" -o "lightsailctl"
+          sudo mv lightsailctl /usr/local/bin/
+          sudo chmod +x /usr/local/bin/lightsailctl
+
       - name: Push image to Lightsail
         id: push-image
         shell: bash
