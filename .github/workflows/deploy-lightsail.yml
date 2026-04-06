@@ -44,12 +44,28 @@ jobs:
             fi
           done
 
-          for name in SECRET_KEY DATABASE_URL AWS_ACCESS_KEY_ID AWS_SECRET_ACCESS_KEY; do
+          for name in SECRET_KEY AWS_ACCESS_KEY_ID AWS_SECRET_ACCESS_KEY; do
             if [ -z "${!name:-}" ]; then
               echo "::error::Repository secret $name is required."
               missing=1
             fi
           done
+
+          has_database_url=0
+          has_database_parts=0
+
+          if [ -n "${DATABASE_URL:-}" ]; then
+            has_database_url=1
+          fi
+
+          if [ -n "${DB_HOST:-}" ] && [ -n "${DB_NAME:-}" ] && [ -n "${DB_USER:-}" ] && [ -n "${DB_PASSWORD:-}" ]; then
+            has_database_parts=1
+          fi
+
+          if [ "$has_database_url" -ne 1 ] && [ "$has_database_parts" -ne 1 ]; then
+            echo "::error::Set either DATABASE_URL or the DB_HOST/DB_NAME/DB_USER/DB_PASSWORD secrets."
+            missing=1
+          fi
 
           if [ "$missing" -ne 0 ]; then
             exit 1
@@ -59,6 +75,10 @@ jobs:
           AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           SECRET_KEY: ${{ secrets.SECRET_KEY }}
           DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          DB_HOST: ${{ secrets.DB_HOST }}
+          DB_NAME: ${{ secrets.DB_NAME }}
+          DB_USER: ${{ secrets.DB_USER }}
+          DB_PASSWORD: ${{ secrets.DB_PASSWORD }}
 
       - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v4
@@ -124,6 +144,12 @@ jobs:
           IMAGE_REF: ${{ steps.push-image.outputs.image_ref }}
           SECRET_KEY: ${{ secrets.SECRET_KEY }}
           DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          DB_DRIVER: ${{ secrets.DB_DRIVER }}
+          DB_HOST: ${{ secrets.DB_HOST }}
+          DB_PORT: ${{ secrets.DB_PORT }}
+          DB_NAME: ${{ secrets.DB_NAME }}
+          DB_USER: ${{ secrets.DB_USER }}
+          DB_PASSWORD: ${{ secrets.DB_PASSWORD }}
           IMAGE_S3_PATH: ${{ secrets.IMAGE_S3_PATH }}
           APP_AWS_REGION: ${{ secrets.APP_AWS_REGION }}
           APP_AWS_ACCESS_KEY_ID: ${{ secrets.APP_AWS_ACCESS_KEY_ID }}
@@ -138,7 +164,13 @@ jobs:
             --arg image "$IMAGE_REF" \
             --arg port "$APP_PORT" \
             --arg secretKey "$SECRET_KEY" \
-            --arg databaseUrl "$DATABASE_URL" \
+            --arg databaseUrl "${DATABASE_URL:-}" \
+            --arg dbDriver "${DB_DRIVER:-mysql+pymysql}" \
+            --arg dbHost "${DB_HOST:-}" \
+            --arg dbPort "${DB_PORT:-3306}" \
+            --arg dbName "${DB_NAME:-}" \
+            --arg dbUser "${DB_USER:-}" \
+            --arg dbPassword "${DB_PASSWORD:-}" \
             --arg imageS3Path "${IMAGE_S3_PATH:-}" \
             --arg awsRegion "${APP_AWS_REGION:-$AWS_REGION}" \
             --arg awsAccessKeyId "${APP_AWS_ACCESS_KEY_ID:-}" \
@@ -157,9 +189,15 @@ jobs:
                     {
                       PORT: $port,
                       FLASK_DEBUG: "false",
-                      SECRET_KEY: $secretKey,
-                      DATABASE_URL: $databaseUrl
+                      SECRET_KEY: $secretKey
                     }
+                    + optional_env("DATABASE_URL"; $databaseUrl)
+                    + optional_env("DB_DRIVER"; $dbDriver)
+                    + optional_env("DB_HOST"; $dbHost)
+                    + optional_env("DB_PORT"; $dbPort)
+                    + optional_env("DB_NAME"; $dbName)
+                    + optional_env("DB_USER"; $dbUser)
+                    + optional_env("DB_PASSWORD"; $dbPassword)
                     + optional_env("IMAGE_S3_PATH"; $imageS3Path)
                     + optional_env("AWS_REGION"; $awsRegion)
                     + optional_env("AWS_ACCESS_KEY_ID"; $awsAccessKeyId)

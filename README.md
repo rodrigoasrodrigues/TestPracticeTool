@@ -61,7 +61,18 @@ python run.py
 
 ```env
 SECRET_KEY=sua-chave-secreta-aqui
-DATABASE_URL=mysql+pymysql://usuario:senha@localhost/testpracticetool
+
+# Opção 1: URL completa de conexão
+DATABASE_URL=
+
+# Opção 2: variáveis separadas (recomendado se a senha tiver caracteres especiais)
+DB_DRIVER=mysql+pymysql
+DB_HOST=localhost
+DB_PORT=3306
+DB_NAME=testpracticetool
+DB_USER=root
+DB_PASSWORD=sua-senha
+
 FLASK_RUN_HOST=0.0.0.0
 FLASK_RUN_PORT=5000
 IMAGE_S3_PATH=s3://seu-bucket/testpracticetool/uploads
@@ -117,7 +128,7 @@ Ao criar o serviço de container no Lightsail, configure:
 - **Variáveis de ambiente**: `SECRET_KEY`, `DATABASE_URL` e demais necessárias
 - **Comando de inicialização**: já está definido no `Dockerfile`
 
-> Se o banco estiver fora do container, use no `DATABASE_URL` o hostname/IP acessível a partir do Lightsail.
+> Se o banco estiver fora do container, você pode usar `DATABASE_URL` **ou** as variáveis separadas `DB_HOST`, `DB_PORT`, `DB_NAME`, `DB_USER` e `DB_PASSWORD`. Para senhas com `#`, `@`, `:` e similares, prefira as variáveis separadas.
 
 ### Deploy automatizado com GitHub Actions
 
@@ -134,7 +145,13 @@ O workflow `/.github/workflows/deploy-lightsail.yml` faz o build da imagem, envi
 - `AWS_ACCESS_KEY_ID`
 - `AWS_SECRET_ACCESS_KEY`
 - `SECRET_KEY`
-- `DATABASE_URL`
+- `DATABASE_URL` *(opcional, se não usar as variáveis separadas)*
+- `DB_DRIVER` *(opcional, padrão: `mysql+pymysql`)*
+- `DB_HOST` *(opcional se `DATABASE_URL` estiver definida; caso contrário, obrigatório)*
+- `DB_PORT` *(opcional, padrão: `3306`)*
+- `DB_NAME` *(opcional se `DATABASE_URL` estiver definida; caso contrário, obrigatório)*
+- `DB_USER` *(opcional se `DATABASE_URL` estiver definida; caso contrário, obrigatório)*
+- `DB_PASSWORD` *(opcional se `DATABASE_URL` estiver definida; caso contrário, obrigatório)*
 - `IMAGE_S3_PATH` *(opcional)*
 - `APP_AWS_REGION` *(opcional)*
 - `APP_AWS_ACCESS_KEY_ID` *(opcional, se o app precisar acessar S3 com credenciais explícitas)*
