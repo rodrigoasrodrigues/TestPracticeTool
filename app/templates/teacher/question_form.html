@@ -39,7 +39,7 @@
                             {{ form.image(class="form-control") }}
                             {% if question and question.image_path %}
                             <div class="mt-2">
-                                <img src="{{ url_for('static', filename='uploads/' + question.image_path) }}"
+                                <img src="{{ image_url(question.image_path) }}"
                                      class="img-thumbnail" style="max-height: 150px;" alt="Imagem atual">
                                 <small class="text-muted d-block mt-1">Imagem atual. Faça upload de uma nova para substituí-la.</small>
                             </div>

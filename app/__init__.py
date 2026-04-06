@@ -42,7 +42,11 @@ def create_app(config_class=Config):
 
     @app.context_processor
     def inject_now():
-        return {'now': datetime.now(timezone.utc)}
+        from app.storage import get_image_url
+        return {
+            'now': datetime.now(timezone.utc),
+            'image_url': get_image_url,
+        }
 
     @app.errorhandler(403)
     def forbidden(e):

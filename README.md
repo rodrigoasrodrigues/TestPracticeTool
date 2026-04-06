@@ -64,9 +64,13 @@ SECRET_KEY=sua-chave-secreta-aqui
 DATABASE_URL=mysql+pymysql://usuario:senha@localhost/testpracticetool
 FLASK_RUN_HOST=0.0.0.0
 FLASK_RUN_PORT=5000
+IMAGE_S3_PATH=s3://seu-bucket/testpracticetool/uploads
+AWS_REGION=us-east-1
 ```
 
 > Para acessar pela rede local durante o debug, inicie a aplicação normalmente no VS Code e abra `http://IP_DA_SUA_MAQUINA:5000` a partir de outro dispositivo da mesma rede.
+
+> Se `IMAGE_S3_PATH` estiver definida, as imagens das questões serão gravadas no S3 nesse prefixo; sem essa variável, o comportamento continua local em `app/static/uploads`.
 
 ## Estrutura do Projeto
 

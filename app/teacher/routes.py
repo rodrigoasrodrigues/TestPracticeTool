@@ -9,6 +9,7 @@ from flask import render_template, redirect, url_for, flash, request, abort, cur
 from flask_login import login_required, current_user
 from werkzeug.utils import secure_filename
 from app import db
+from app.storage import delete_image, read_image_bytes, save_image, save_image_bytes
 from app.teacher import bp
 from app.teacher.forms import SubjectForm, QuestionForm, ExamForm, AssignExamForm, ImportQuestionsForm
 from app.models import (Subject, Question, AnswerOption, Exam, ExamQuestion,
@@ -30,15 +31,6 @@ def teacher_required(f):
 def allowed_file(filename):
     allowed = current_app.config.get('ALLOWED_EXTENSIONS', {'png', 'jpg', 'jpeg', 'gif', 'webp'})
     return '.' in filename and filename.rsplit('.', 1)[1].lower() in allowed
-
-
-def save_image(file):
-    ext = file.filename.rsplit('.', 1)[1].lower()
-    filename = f"{uuid.uuid4().hex}.{ext}"
-    upload_folder = current_app.config['UPLOAD_FOLDER']
-    os.makedirs(upload_folder, exist_ok=True)
-    file.save(os.path.join(upload_folder, filename))
-    return filename
 
 
 def _question_image_export_name(question, original_filename):
@@ -229,11 +221,11 @@ def export_subject_package(subject_id):
         for question in questions:
             if not question.image_path:
                 continue
-            source_path = os.path.join(current_app.config['UPLOAD_FOLDER'], question.image_path)
-            if not os.path.exists(source_path):
+            image_bytes = read_image_bytes(question.image_path)
+            if not image_bytes:
                 continue
             export_name = _question_image_export_name(question, question.image_path)
-            zf.write(source_path, arcname=f'images/{export_name}')
+            zf.writestr(f'images/{export_name}', image_bytes)
 
     memory_file.seek(0)
     zip_filename = _subject_package_zip_filename(subject)
@@ -287,7 +279,12 @@ def create_question():
         image_path = None
         if form.image.data and form.image.data.filename:
             if allowed_file(form.image.data.filename):
-                image_path = save_image(form.image.data)
+                try:
+                    image_path = save_image(form.image.data)
+                except (ValueError, RuntimeError) as exc:
+                    flash(str(exc), 'danger')
+                    return render_template('teacher/question_form.html', title='Nova Questão',
+                                           form=form)
             else:
                 flash('Tipo de arquivo não permitido.', 'danger')
                 return render_template('teacher/question_form.html', title='Nova Questão',
@@ -356,15 +353,18 @@ def edit_question(question_id):
         image_path = question.image_path
         if form.image.data and form.image.data.filename:
             if allowed_file(form.image.data.filename):
-                # Delete old image
-                if question.image_path:
-                    old_path = os.path.join(current_app.config['UPLOAD_FOLDER'],
-                                            question.image_path)
-                    if os.path.exists(old_path):
-                        os.remove(old_path)
-                image_path = save_image(form.image.data)
+                try:
+                    if question.image_path:
+                        delete_image(question.image_path)
+                    image_path = save_image(form.image.data)
+                except (ValueError, RuntimeError) as exc:
+                    flash(str(exc), 'danger')
+                    return render_template('teacher/question_form.html', title='Editar Questão',
+                                           form=form, question=question)
             else:
                 flash('Tipo de arquivo não permitido.', 'danger')
+                return render_template('teacher/question_form.html', title='Editar Questão',
+                                       form=form, question=question)
 
         question.subject_id = form.subject_id.data
         question.text = form.text.data
@@ -398,9 +398,7 @@ def delete_question(question_id):
     if question.created_by != current_user.id:
         abort(403)
     if question.image_path:
-        old_path = os.path.join(current_app.config['UPLOAD_FOLDER'], question.image_path)
-        if os.path.exists(old_path):
-            os.remove(old_path)
+        delete_image(question.image_path)
     db.session.delete(question)
     db.session.commit()
     flash('Questão excluída.', 'success')
@@ -666,19 +664,8 @@ def _extract_package_yaml_and_images(raw_zip_bytes):
 
 
 def _save_imported_image_bytes(original_name, content_bytes):
-    """Persist imported image bytes into upload folder with a unique filename."""
-    ext = os.path.splitext(os.path.basename(original_name or ''))[1].lower().lstrip('.')
-    allowed = current_app.config.get('ALLOWED_EXTENSIONS', {'png', 'jpg', 'jpeg', 'gif', 'webp'})
-    if ext not in allowed:
-        raise ValueError(f'Extensão de imagem não permitida: .{ext}')
-
-    filename = f"{uuid.uuid4().hex}.{ext}"
-    upload_folder = current_app.config['UPLOAD_FOLDER']
-    os.makedirs(upload_folder, exist_ok=True)
-    file_path = os.path.join(upload_folder, filename)
-    with open(file_path, 'wb') as img_file:
-        img_file.write(content_bytes)
-    return filename
+    """Persist imported image bytes in S3 or local storage with a unique filename."""
+    return save_image_bytes(original_name, content_bytes)
 
 
 def _parse_yaml_questions(raw_bytes):
@@ -811,7 +798,7 @@ def import_questions():
                     try:
                         image_path = _save_imported_image_bytes(image_file_name, image_bytes)
                         images_imported += 1
-                    except ValueError:
+                    except (ValueError, RuntimeError):
                         images_invalid += 1
 
             question = Question(
