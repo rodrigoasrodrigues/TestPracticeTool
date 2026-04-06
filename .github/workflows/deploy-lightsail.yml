@@ -1,0 +1,165 @@
+name: Deploy to AWS Lightsail
+
+on:
+  push:
+    branches:
+      - main
+      - master
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: lightsail-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  AWS_REGION: ${{ vars.AWS_REGION }}
+  LIGHTSAIL_SERVICE_NAME: ${{ vars.LIGHTSAIL_SERVICE_NAME }}
+  LIGHTSAIL_CONTAINER_NAME: ${{ vars.LIGHTSAIL_CONTAINER_NAME || 'app' }}
+  LIGHTSAIL_IMAGE_LABEL: ${{ vars.LIGHTSAIL_IMAGE_LABEL || 'app' }}
+  APP_PORT: ${{ vars.APP_PORT || '5000' }}
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Validate workflow configuration
+        shell: bash
+        run: |
+          set -euo pipefail
+          missing=0
+
+          for name in AWS_REGION LIGHTSAIL_SERVICE_NAME; do
+            if [ -z "${!name:-}" ]; then
+              echo "::error::Repository variable $name is required."
+              missing=1
+            fi
+          done
+
+          for name in SECRET_KEY DATABASE_URL AWS_ACCESS_KEY_ID AWS_SECRET_ACCESS_KEY; do
+            if [ -z "${!name:-}" ]; then
+              echo "::error::Repository secret $name is required."
+              missing=1
+            fi
+          done
+
+          if [ "$missing" -ne 0 ]; then
+            exit 1
+          fi
+        env:
+          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          SECRET_KEY: ${{ secrets.SECRET_KEY }}
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Build Docker image
+        run: docker build -t testpracticetool .
+
+      - name: Push image to Lightsail
+        id: push-image
+        shell: bash
+        run: |
+          set -euo pipefail
+          push_output=$(aws lightsail push-container-image \
+            --service-name "$LIGHTSAIL_SERVICE_NAME" \
+            --label "$LIGHTSAIL_IMAGE_LABEL" \
+            --image testpracticetool)
+
+          echo "$push_output"
+
+          image_ref=$(echo "$push_output" | jq -r '.image')
+          if [ -z "$image_ref" ] || [ "$image_ref" = "null" ]; then
+            echo "::error::Unable to determine the pushed Lightsail image reference."
+            exit 1
+          fi
+
+          echo "image_ref=$image_ref" >> "$GITHUB_OUTPUT"
+
+      - name: Build Lightsail deployment spec
+        shell: bash
+        env:
+          IMAGE_REF: ${{ steps.push-image.outputs.image_ref }}
+          SECRET_KEY: ${{ secrets.SECRET_KEY }}
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          IMAGE_S3_PATH: ${{ secrets.IMAGE_S3_PATH }}
+          APP_AWS_REGION: ${{ secrets.APP_AWS_REGION }}
+          APP_AWS_ACCESS_KEY_ID: ${{ secrets.APP_AWS_ACCESS_KEY_ID }}
+          APP_AWS_SECRET_ACCESS_KEY: ${{ secrets.APP_AWS_SECRET_ACCESS_KEY }}
+          APP_AWS_SESSION_TOKEN: ${{ secrets.APP_AWS_SESSION_TOKEN }}
+          AWS_S3_ENDPOINT_URL: ${{ secrets.AWS_S3_ENDPOINT_URL }}
+        run: |
+          set -euo pipefail
+
+          jq -n \
+            --arg containerName "$LIGHTSAIL_CONTAINER_NAME" \
+            --arg image "$IMAGE_REF" \
+            --arg port "$APP_PORT" \
+            --arg secretKey "$SECRET_KEY" \
+            --arg databaseUrl "$DATABASE_URL" \
+            --arg imageS3Path "${IMAGE_S3_PATH:-}" \
+            --arg awsRegion "${APP_AWS_REGION:-$AWS_REGION}" \
+            --arg awsAccessKeyId "${APP_AWS_ACCESS_KEY_ID:-}" \
+            --arg awsSecretAccessKey "${APP_AWS_SECRET_ACCESS_KEY:-}" \
+            --arg awsSessionToken "${APP_AWS_SESSION_TOKEN:-}" \
+            --arg awsS3EndpointUrl "${AWS_S3_ENDPOINT_URL:-}" \
+            '
+            def optional_env($key; $value):
+              if ($value // "") != "" then {($key): $value} else {} end;
+
+            {
+              containers: {
+                ($containerName): {
+                  image: $image,
+                  environment:
+                    {
+                      PORT: $port,
+                      FLASK_DEBUG: "false",
+                      SECRET_KEY: $secretKey,
+                      DATABASE_URL: $databaseUrl
+                    }
+                    + optional_env("IMAGE_S3_PATH"; $imageS3Path)
+                    + optional_env("AWS_REGION"; $awsRegion)
+                    + optional_env("AWS_ACCESS_KEY_ID"; $awsAccessKeyId)
+                    + optional_env("AWS_SECRET_ACCESS_KEY"; $awsSecretAccessKey)
+                    + optional_env("AWS_SESSION_TOKEN"; $awsSessionToken)
+                    + optional_env("AWS_S3_ENDPOINT_URL"; $awsS3EndpointUrl),
+                  ports: {
+                    ($port): "HTTP"
+                  }
+                }
+              },
+              publicEndpoint: {
+                containerName: $containerName,
+                containerPort: ($port | tonumber),
+                healthCheck: {
+                  path: "/",
+                  successCodes: "200-499",
+                  intervalSeconds: 10,
+                  timeoutSeconds: 5,
+                  healthyThreshold: 2,
+                  unhealthyThreshold: 2
+                }
+              }
+            }
+            ' > lightsail-deployment.json
+
+          cat lightsail-deployment.json
+
+      - name: Deploy container to Lightsail
+        run: |
+          aws lightsail create-container-service-deployment \
+            --service-name "$LIGHTSAIL_SERVICE_NAME" \
+            --cli-input-json file://lightsail-deployment.json

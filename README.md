@@ -119,6 +119,31 @@ Ao criar o serviço de container no Lightsail, configure:
 
 > Se o banco estiver fora do container, use no `DATABASE_URL` o hostname/IP acessível a partir do Lightsail.
 
+### Deploy automatizado com GitHub Actions
+
+O workflow `/.github/workflows/deploy-lightsail.yml` faz o build da imagem, envia para o Lightsail e cria uma nova deployment automaticamente em `push` para `main`/`master` ou via execução manual.
+
+**Repository Variables**
+- `AWS_REGION`
+- `LIGHTSAIL_SERVICE_NAME`
+- `LIGHTSAIL_CONTAINER_NAME` *(opcional, padrão: `app`)*
+- `LIGHTSAIL_IMAGE_LABEL` *(opcional, padrão: `app`)*
+- `APP_PORT` *(opcional, padrão: `5000`)*
+
+**Repository Secrets**
+- `AWS_ACCESS_KEY_ID`
+- `AWS_SECRET_ACCESS_KEY`
+- `SECRET_KEY`
+- `DATABASE_URL`
+- `IMAGE_S3_PATH` *(opcional)*
+- `APP_AWS_REGION` *(opcional)*
+- `APP_AWS_ACCESS_KEY_ID` *(opcional, se o app precisar acessar S3 com credenciais explícitas)*
+- `APP_AWS_SECRET_ACCESS_KEY` *(opcional)*
+- `APP_AWS_SESSION_TOKEN` *(opcional)*
+- `AWS_S3_ENDPOINT_URL` *(opcional)*
+
+> O serviço de container no Lightsail precisa existir previamente; o workflow cuida do envio da imagem e da atualização da deployment.
+
 ## Usuário Inicial
 
 Após executar `python init_db.py`, será criado um usuário professor padrão:
