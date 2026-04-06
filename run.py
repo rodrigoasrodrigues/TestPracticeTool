@@ -25,4 +25,6 @@ def make_shell_context():
 if __name__ == '__main__':
     import os
     debug = os.environ.get('FLASK_DEBUG', 'false').lower() == 'true'
-    app.run(debug=debug)
+    host = os.environ.get('FLASK_RUN_HOST', '0.0.0.0')
+    port = int(os.environ.get('FLASK_RUN_PORT', '5000'))
+    app.run(host=host, port=port, debug=debug)

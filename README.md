@@ -62,7 +62,11 @@ python run.py
 ```env
 SECRET_KEY=sua-chave-secreta-aqui
 DATABASE_URL=mysql+pymysql://usuario:senha@localhost/testpracticetool
+FLASK_RUN_HOST=0.0.0.0
+FLASK_RUN_PORT=5000
 ```
+
+> Para acessar pela rede local durante o debug, inicie a aplicação normalmente no VS Code e abra `http://IP_DA_SUA_MAQUINA:5000` a partir de outro dispositivo da mesma rede.
 
 ## Estrutura do Projeto
 
@@ -84,6 +88,30 @@ TestPracticeTool/
 ├── .env.example
 └── README.md
 ```
+
+## Docker / AWS Lightsail
+
+### Gerar a imagem localmente
+
+```bash
+docker build -t testpracticetool .
+```
+
+### Executar o container
+
+```bash
+docker run -p 5000:5000 --env-file .env testpracticetool
+```
+
+### Deploy no AWS Lightsail
+
+Ao criar o serviço de container no Lightsail, configure:
+
+- **Porta pública do container**: `5000`
+- **Variáveis de ambiente**: `SECRET_KEY`, `DATABASE_URL` e demais necessárias
+- **Comando de inicialização**: já está definido no `Dockerfile`
+
+> Se o banco estiver fora do container, use no `DATABASE_URL` o hostname/IP acessível a partir do Lightsail.
 
 ## Usuário Inicial
 
