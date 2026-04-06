@@ -103,6 +103,8 @@ docker build -t testpracticetool .
 docker run -p 5000:5000 --env-file .env testpracticetool
 ```
 
+> Na inicialização do container, o `init_db.py` é executado antes de subir a aplicação. Como esse script já verifica se o usuário admin existe e cria apenas o que falta, ele é seguro para reinicializações.
+
 ### Deploy no AWS Lightsail
 
 Ao criar o serviço de container no Lightsail, configure:
