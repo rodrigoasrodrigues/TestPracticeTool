@@ -85,27 +85,33 @@ jobs:
         run: |
           set -euo pipefail
 
-          push_output=$(aws lightsail push-container-image \
+          aws lightsail push-container-image \
             --service-name "$LIGHTSAIL_SERVICE_NAME" \
             --label "$LIGHTSAIL_IMAGE_LABEL" \
             --image testpracticetool \
             --output json \
-            --no-cli-pager)
+            --no-cli-pager
 
-          echo "$push_output"
+          echo "Looking up pushed image reference..."
+          image_ref=""
 
-          image_ref=$(printf '%s' "$push_output" | python -c "import json,sys; data=json.load(sys.stdin); print(data.get('image',''))")
-
-          if [ -z "$image_ref" ] || [ "$image_ref" = "null" ]; then
-            echo "Direct image reference not returned; querying Lightsail for the latest image label..."
+          for attempt in 1 2 3 4 5 6; do
             image_ref=$(aws lightsail get-container-images \
               --service-name "$LIGHTSAIL_SERVICE_NAME" \
-              --output json \
-              --no-cli-pager | python -c "import json,sys; label='.' + '$LIGHTSAIL_IMAGE_LABEL' + '.'; data=json.load(sys.stdin); items=data.get('containerImages', []); items=[item for item in items if label in str(item.get('image',''))]; items.sort(key=lambda item: item.get('createdAt','')); print(items[-1].get('image','') if items else '')")
-          fi
+              --query "reverse(sort_by(containerImages[?contains(image, '.${LIGHTSAIL_IMAGE_LABEL}.')], &createdAt))[0].image" \
+              --output text \
+              --no-cli-pager)
+
+            if [ -n "$image_ref" ] && [ "$image_ref" != "None" ] && [ "$image_ref" != "null" ]; then
+              break
+            fi
+
+            echo "Image reference not available yet (attempt $attempt/6); waiting 5 seconds..."
+            sleep 5
+          done
 
           if [ -z "$image_ref" ] || [ "$image_ref" = "None" ] || [ "$image_ref" = "null" ]; then
-            echo "::error::Unable to determine the pushed Lightsail image reference."
+            echo "::error::Unable to determine the pushed Lightsail image reference after upload."
             exit 1
           fi
 
