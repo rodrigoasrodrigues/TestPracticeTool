@@ -127,9 +127,12 @@
                         </div>
                         {% endfor %}
 
-                        <div class="d-flex gap-2 mt-4">
+                        <div class="d-flex gap-2 mt-4 flex-wrap">
                             {{ form.submit(class="btn btn-success") }}
-                            <a href="{{ url_for('teacher.questions') }}" class="btn btn-outline-secondary">Cancelar</a>
+                            {% if not question %}
+                            {{ form.save_and_new(class="btn btn-primary") }}
+                            {% endif %}
+                            <a href="{{ url_for('teacher.questions', subject_id=form.subject_id.data) if form.subject_id.data else url_for('teacher.questions') }}" class="btn btn-outline-secondary">Cancelar</a>
                         </div>
                     </form>
                 </div>

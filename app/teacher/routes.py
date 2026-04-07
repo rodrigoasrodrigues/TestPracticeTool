@@ -348,6 +348,12 @@ def create_question():
     subjects_list = Subject.query.filter_by(created_by=current_user.id).order_by(Subject.name).all()
     form.subject_id.choices = [(s.id, s.name) for s in subjects_list]
 
+    if request.method == 'GET':
+        subject_id_qs = request.args.get('subject_id', type=int)
+        valid_subject_ids = {subject.id for subject in subjects_list}
+        if subject_id_qs in valid_subject_ids:
+            form.subject_id.data = subject_id_qs
+
     if form.validate_on_submit():
         saved_images = []
         try:
@@ -403,8 +409,12 @@ def create_question():
             _delete_images(saved_images)
             raise
 
+        if form.save_and_new.data:
+            flash('Questão criada com sucesso! Pode cadastrar a próxima.', 'success')
+            return redirect(url_for('teacher.create_question', subject_id=form.subject_id.data))
+
         flash('Questão criada com sucesso!', 'success')
-        return redirect(url_for('teacher.questions'))
+        return redirect(url_for('teacher.questions', subject_id=form.subject_id.data))
 
     return render_template('teacher/question_form.html', title='Nova Questão', form=form,
                            existing_options=[])

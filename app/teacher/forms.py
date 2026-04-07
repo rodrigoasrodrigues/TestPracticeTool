@@ -53,6 +53,7 @@ class QuestionForm(FlaskForm):
                                           ('4', 'D'), ('5', 'E')],
                                  validators=[DataRequired()])
     submit = SubmitField('Salvar Questão')
+    save_and_new = SubmitField('Salvar e Inserir Nova')
 
 
 class ExamSubjectForm(FlaskForm):
