@@ -199,10 +199,10 @@ jobs:
                     + optional_env("DB_USER"; $dbUser)
                     + optional_env("DB_PASSWORD"; $dbPassword)
                     + optional_env("IMAGE_S3_PATH"; $imageS3Path)
-                    + optional_env("AWS_REGION"; $awsRegion)
-                    + optional_env("AWS_ACCESS_KEY_ID"; $awsAccessKeyId)
-                    + optional_env("AWS_SECRET_ACCESS_KEY"; $awsSecretAccessKey)
-                    + optional_env("AWS_SESSION_TOKEN"; $awsSessionToken)
+                    + optional_env("APP_AWS_REGION"; $awsRegion)
+                    + optional_env("APP_AWS_ACCESS_KEY_ID"; $awsAccessKeyId)
+                    + optional_env("APP_AWS_SECRET_ACCESS_KEY"; $awsSecretAccessKey)
+                    + optional_env("APP_AWS_SESSION_TOKEN"; $awsSessionToken)
                     + optional_env("AWS_S3_ENDPOINT_URL"; $awsS3EndpointUrl)
                   ),
                   ports: {

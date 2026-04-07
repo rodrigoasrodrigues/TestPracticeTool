@@ -41,6 +41,10 @@ class Config:
     IMAGE_S3_PATH = os.environ.get('IMAGE_S3_PATH', '').strip()
     IMAGE_S3_URL_EXPIRATION = int(os.environ.get('IMAGE_S3_URL_EXPIRATION', '3600'))
     AWS_REGION = os.environ.get('AWS_REGION', '').strip() or None
+    APP_AWS_REGION = os.environ.get('APP_AWS_REGION', '').strip() or None
+    APP_AWS_ACCESS_KEY_ID = os.environ.get('APP_AWS_ACCESS_KEY_ID', '').strip() or None
+    APP_AWS_SECRET_ACCESS_KEY = os.environ.get('APP_AWS_SECRET_ACCESS_KEY', '').strip() or None
+    APP_AWS_SESSION_TOKEN = os.environ.get('APP_AWS_SESSION_TOKEN', '').strip() or None
     AWS_S3_ENDPOINT_URL = os.environ.get('AWS_S3_ENDPOINT_URL', '').strip() or None
     MAX_CONTENT_LENGTH = 16 * 1024 * 1024  # 16MB max upload
     ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'gif', 'webp'}

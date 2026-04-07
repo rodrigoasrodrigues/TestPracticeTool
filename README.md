@@ -76,6 +76,11 @@ DB_PASSWORD=sua-senha
 FLASK_RUN_HOST=0.0.0.0
 FLASK_RUN_PORT=5000
 IMAGE_S3_PATH=s3://seu-bucket/testpracticetool/uploads
+APP_AWS_REGION=us-east-1
+APP_AWS_ACCESS_KEY_ID=
+APP_AWS_SECRET_ACCESS_KEY=
+APP_AWS_SESSION_TOKEN=
+AWS_S3_ENDPOINT_URL=
 AWS_REGION=us-east-1
 ```
 
@@ -154,10 +159,12 @@ O workflow `/.github/workflows/deploy-lightsail.yml` faz o build da imagem, envi
 - `DB_PASSWORD` *(opcional se `DATABASE_URL` estiver definida; caso contrário, obrigatório)*
 - `IMAGE_S3_PATH` *(opcional)*
 - `APP_AWS_REGION` *(opcional)*
-- `APP_AWS_ACCESS_KEY_ID` *(opcional, se o app precisar acessar S3 com credenciais explícitas)*
+- `APP_AWS_ACCESS_KEY_ID` *(opcional, credencial exclusiva do app para acessar S3)*
 - `APP_AWS_SECRET_ACCESS_KEY` *(opcional)*
 - `APP_AWS_SESSION_TOKEN` *(opcional)*
 - `AWS_S3_ENDPOINT_URL` *(opcional)*
+
+> As credenciais do workflow (`AWS_ACCESS_KEY_ID` / `AWS_SECRET_ACCESS_KEY`) continuam sendo usadas apenas para o deploy. O container da aplicação usa `APP_AWS_*` para acessar o S3.
 
 > O serviço de container no Lightsail precisa existir previamente; o workflow cuida do envio da imagem e da atualização da deployment.
 

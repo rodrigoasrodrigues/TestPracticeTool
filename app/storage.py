@@ -48,13 +48,21 @@ def _build_s3_key(filename):
 
 def _get_s3_client():
     client_kwargs = {}
-    region = current_app.config.get('AWS_REGION')
+    region = current_app.config.get('APP_AWS_REGION') or current_app.config.get('AWS_REGION')
     endpoint_url = current_app.config.get('AWS_S3_ENDPOINT_URL')
+    access_key_id = current_app.config.get('APP_AWS_ACCESS_KEY_ID')
+    secret_access_key = current_app.config.get('APP_AWS_SECRET_ACCESS_KEY')
+    session_token = current_app.config.get('APP_AWS_SESSION_TOKEN')
 
     if region:
         client_kwargs['region_name'] = region
     if endpoint_url:
         client_kwargs['endpoint_url'] = endpoint_url
+    if access_key_id and secret_access_key:
+        client_kwargs['aws_access_key_id'] = access_key_id
+        client_kwargs['aws_secret_access_key'] = secret_access_key
+        if session_token:
+            client_kwargs['aws_session_token'] = session_token
 
     return boto3.client('s3', **client_kwargs)
 
