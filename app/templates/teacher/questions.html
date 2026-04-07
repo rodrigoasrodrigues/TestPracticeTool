@@ -43,7 +43,7 @@
 
     {% if questions %}
     <form id="moveQuestionsForm" method="POST" action="{{ url_for('teacher.move_questions') }}"
-          class="card shadow-sm border-0 mb-3">
+          class="card shadow-sm border-0 mb-3 d-none">
         <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
         {% if selected_subject %}
         <input type="hidden" name="return_subject_id" value="{{ selected_subject }}">
@@ -164,10 +164,11 @@
 document.addEventListener('DOMContentLoaded', function () {
     const selectAll = document.getElementById('selectAllQuestions');
     const checkboxes = Array.from(document.querySelectorAll('.question-checkbox'));
+    const moveForm = document.getElementById('moveQuestionsForm');
     const moveButton = document.getElementById('moveSelectedBtn');
     const countLabel = document.getElementById('selectedQuestionsCount');
 
-    if (!checkboxes.length || !moveButton || !countLabel) {
+    if (!checkboxes.length || !moveForm || !moveButton || !countLabel) {
         return;
     }
 
@@ -175,6 +176,7 @@ document.addEventListener('DOMContentLoaded', function () {
         const selectedCount = checkboxes.filter((checkbox) => checkbox.checked).length;
         moveButton.disabled = selectedCount === 0;
         countLabel.textContent = `${selectedCount} selecionada(s)`;
+        moveForm.classList.toggle('d-none', selectedCount === 0);
 
         if (selectAll) {
             selectAll.checked = selectedCount > 0 && selectedCount === checkboxes.length;
