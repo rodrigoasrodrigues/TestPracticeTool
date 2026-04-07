@@ -63,7 +63,7 @@
                 </span>
             </div>
             <div class="card-body">
-                <p class="mb-3 fs-5">{{ eq.question.text }}</p>
+                <div class="mb-3 fs-5 math-content">{{ eq.question.text|format_math_text }}</div>
                 {% if eq.question.image_path %}
                 <div class="mb-3">
                     <img src="{{ image_url(eq.question.image_path) }}"
@@ -84,7 +84,7 @@
                                class="option-label d-flex align-items-start gap-3 border rounded p-3 w-100">
                             <span class="badge bg-secondary flex-shrink-0 mt-1">{{ loop.index }}</span>
                             <span class="flex-grow-1">
-                                <span class="d-block">{{ option.answer_option.text }}</span>
+                                <span class="d-block math-content">{{ option.answer_option.text|format_math_text }}</span>
                                 {% if option.answer_option.image_path %}
                                 <img src="{{ image_url(option.answer_option.image_path) }}"
                                      class="img-fluid rounded mt-2" style="max-height: 180px;"

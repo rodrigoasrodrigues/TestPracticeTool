@@ -60,8 +60,8 @@
                     <tr>
                         <td class="text-muted small">{{ q.id }}</td>
                         <td>
-                            <div class="text-truncate" style="max-width: 350px;" title="{{ q.text }}">
-                                {{ q.text }}
+                            <div class="text-truncate math-content" style="max-width: 350px;" title="{{ q.text }}">
+                                {{ q.text|format_math_text }}
                             </div>
                         </td>
                         <td>

@@ -29,6 +29,9 @@
                             {{ form.text.label(class="form-label fw-semibold") }}
                             {{ form.text(class="form-control" + (" is-invalid" if form.text.errors else ""),
                                rows=4, placeholder="Digite o enunciado da questão...") }}
+                            <div class="form-text">
+                                Use <code>$...$</code> para LaTeX inline e <code>$$...$$</code> para fórmulas em bloco.
+                            </div>
                             {% for error in form.text.errors %}
                             <div class="invalid-feedback">{{ error }}</div>
                             {% endfor %}
@@ -57,6 +60,9 @@
                             </div>
                             {{ form.explanation(class="form-control", rows=3,
                                placeholder="Explique por que a resposta está correta...") }}
+                            <div class="form-text">
+                                A explicação também aceita LaTeX com <code>$...$</code> e <code>$$...$$</code>.
+                            </div>
                         </div>
 
                         <div class="mb-3">
@@ -99,6 +105,7 @@
                             </label>
                             {{ field(class="form-control" + (" is-invalid" if field.errors else ""),
                                rows=2, placeholder="Opção {{ i }}...") }}
+                            <div class="form-text">Aceita expressões LaTeX, por exemplo <code>$x^2$</code>.</div>
                             {% for error in field.errors %}
                             <div class="invalid-feedback d-block">{{ error }}</div>
                             {% endfor %}

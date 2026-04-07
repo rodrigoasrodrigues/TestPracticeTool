@@ -5,6 +5,7 @@ from flask_sqlalchemy import SQLAlchemy
 from flask_login import LoginManager
 from flask_migrate import Migrate
 from flask_wtf.csrf import CSRFProtect
+from markupsafe import Markup, escape
 from sqlalchemy import inspect, text
 from config import Config
 
@@ -75,6 +76,13 @@ def create_app(config_class=Config):
             'now': datetime.now(timezone.utc),
             'image_url': get_image_url,
         }
+
+    @app.template_filter('format_math_text')
+    def format_math_text(value):
+        if value is None:
+            return ''
+        escaped = escape(str(value))
+        return Markup('<br>\n').join(escaped.splitlines())
 
     @app.errorhandler(403)
     def forbidden(e):

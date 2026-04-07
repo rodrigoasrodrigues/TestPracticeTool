@@ -39,7 +39,7 @@
             </div>
         </div>
         <div class="card-body">
-            <p class="mb-3">{{ eq.question.text }}</p>
+            <div class="mb-3 math-content">{{ eq.question.text|format_math_text }}</div>
             {% if eq.question.image_path %}
             <div class="mb-3">
                 <img src="{{ image_url(eq.question.image_path) }}"
@@ -56,7 +56,7 @@
                     {{ 'list-group-item-danger' if selected and not correct else '' }}">
                     <span class="badge bg-secondary me-2">{{ loop.index }}</span>
                     <div class="d-inline-block align-middle" style="max-width: calc(100% - 60px);">
-                        <div>{{ opt.answer_option.text }}</div>
+                        <div class="math-content">{{ opt.answer_option.text|format_math_text }}</div>
                         {% if opt.answer_option.image_path %}
                         <img src="{{ image_url(opt.answer_option.image_path) }}"
                              class="img-fluid rounded mt-2" style="max-height: 180px;"
@@ -78,7 +78,8 @@
             <div class="alert alert-info mb-0">
                 <i class="bi bi-lightbulb-fill me-2"></i>
                 {% if eq.question.explanation %}
-                <strong>Explicação:</strong> {{ eq.question.explanation }}
+                <strong>Explicação:</strong>
+                <div class="math-content mt-1">{{ eq.question.explanation|format_math_text }}</div>
                 {% else %}
                 <strong>Explicação visual:</strong>
                 {% endif %}

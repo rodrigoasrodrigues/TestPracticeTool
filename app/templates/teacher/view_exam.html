@@ -34,7 +34,7 @@
             <span class="badge bg-primary-subtle text-primary">{{ eq.question.subject.name }}</span>
         </div>
         <div class="card-body">
-            <p class="mb-3">{{ eq.question.text }}</p>
+            <div class="mb-3 math-content">{{ eq.question.text|format_math_text }}</div>
             {% if eq.question.image_path %}
             <div class="mb-3">
                 <img src="{{ image_url(eq.question.image_path) }}"
@@ -46,7 +46,7 @@
                 <li class="list-group-item {{ 'list-group-item-success fw-semibold' if option.answer_option.is_correct else '' }}">
                     <span class="badge bg-secondary me-2">{{ loop.index }}</span>
                     <div class="d-inline-block align-middle" style="max-width: calc(100% - 60px);">
-                        <div>{{ option.answer_option.text }}</div>
+                        <div class="math-content">{{ option.answer_option.text|format_math_text }}</div>
                         {% if option.answer_option.image_path %}
                         <img src="{{ image_url(option.answer_option.image_path) }}"
                              class="img-fluid rounded mt-2" style="max-height: 180px;"
