@@ -33,14 +33,17 @@ def allowed_file(filename):
     return '.' in filename and filename.rsplit('.', 1)[1].lower() in allowed
 
 
-def _question_image_export_name(question, original_filename):
+def _question_image_export_name(question, original_filename, kind='enunciado'):
     """Create a deterministic, human-readable image filename for exports."""
     _, ext = os.path.splitext(os.path.basename(original_filename or ''))
     ext = ext.lower() or '.img'
-    text_stub = secure_filename((question.text or '')[:60]).strip('._-')
+    text_stub = secure_filename((question.text or '')[:40]).strip('._-')
     if not text_stub:
         text_stub = 'questao'
-    return f'q{question.id:05d}_{text_stub}{ext}'
+    kind_stub = secure_filename(kind or 'imagem').strip('._-')
+    if not kind_stub:
+        kind_stub = 'imagem'
+    return f'q{question.id:05d}_{kind_stub}_{text_stub}{ext}'
 
 
 def _subject_yaml_filename(subject):
@@ -57,6 +60,34 @@ def _subject_package_zip_filename(subject):
     return f'{base}_pacote_questoes.zip'
 
 
+_OPTION_IMAGE_FIELD_NAMES = [
+    'option_1_image',
+    'option_2_image',
+    'option_3_image',
+    'option_4_image',
+    'option_5_image',
+]
+
+
+def _save_uploaded_image_field(file_storage, current_path=None):
+    """Save an uploaded image if one was provided, otherwise keep the current path."""
+    if not file_storage or not getattr(file_storage, 'filename', ''):
+        return current_path
+
+    if not allowed_file(file_storage.filename):
+        raise ValueError('Tipo de arquivo não permitido.')
+
+    return save_image(file_storage)
+
+
+def _delete_images(image_paths):
+    for image_path in {path for path in image_paths if path}:
+        try:
+            delete_image(image_path)
+        except RuntimeError as exc:
+            current_app.logger.warning('Falha ao remover imagem %s: %s', image_path, exc)
+
+
 def _build_subject_questions_payload(subject, questions):
     payload = {
         'subject': {
@@ -70,21 +101,37 @@ def _build_subject_questions_payload(subject, questions):
     for question in questions:
         options = question.answer_options.order_by(AnswerOption.id.asc()).all()
         correct_idx = 1
+        options_payload = []
+
         for idx, opt in enumerate(options, start=1):
             if opt.is_correct:
                 correct_idx = idx
-                break
+
+            option_item = {'text': opt.text}
+            if opt.image_path:
+                option_item['image_file'] = _question_image_export_name(
+                    question,
+                    opt.image_path,
+                    kind=f'opcao_{idx}',
+                )
+            options_payload.append(option_item)
 
         item = {
             'id': question.id,
             'text': question.text,
             'explanation': question.explanation or '',
             'correct': correct_idx,
-            'options': [opt.text for opt in options],
+            'options': options_payload,
         }
 
         if question.image_path:
             item['image_file'] = _question_image_export_name(question, question.image_path)
+        if question.explanation_image_path:
+            item['explanation_image_file'] = _question_image_export_name(
+                question,
+                question.explanation_image_path,
+                kind='explicacao',
+            )
 
         payload['questions'].append(item)
 
@@ -219,13 +266,39 @@ def export_subject_package(subject_id):
         )
 
         for question in questions:
-            if not question.image_path:
-                continue
-            image_bytes = read_image_bytes(question.image_path)
-            if not image_bytes:
-                continue
-            export_name = _question_image_export_name(question, question.image_path)
-            zf.writestr(f'images/{export_name}', image_bytes)
+            images_to_export = []
+            if question.image_path:
+                images_to_export.append(
+                    (_question_image_export_name(question, question.image_path), question.image_path)
+                )
+            if question.explanation_image_path:
+                images_to_export.append((
+                    _question_image_export_name(
+                        question,
+                        question.explanation_image_path,
+                        kind='explicacao',
+                    ),
+                    question.explanation_image_path,
+                ))
+
+            for idx, option in enumerate(
+                question.answer_options.order_by(AnswerOption.id.asc()).all(),
+                start=1,
+            ):
+                if option.image_path:
+                    images_to_export.append((
+                        _question_image_export_name(
+                            question,
+                            option.image_path,
+                            kind=f'opcao_{idx}',
+                        ),
+                        option.image_path,
+                    ))
+
+            for export_name, image_path in images_to_export:
+                image_bytes = read_image_bytes(image_path)
+                if image_bytes:
+                    zf.writestr(f'images/{export_name}', image_bytes)
 
     memory_file.seek(0)
     zip_filename = _subject_package_zip_filename(subject)
@@ -276,48 +349,65 @@ def create_question():
     form.subject_id.choices = [(s.id, s.name) for s in subjects_list]
 
     if form.validate_on_submit():
-        image_path = None
-        if form.image.data and form.image.data.filename:
-            if allowed_file(form.image.data.filename):
-                try:
-                    image_path = save_image(form.image.data)
-                except (ValueError, RuntimeError) as exc:
-                    flash(str(exc), 'danger')
-                    return render_template('teacher/question_form.html', title='Nova Questão',
-                                           form=form)
-            else:
-                flash('Tipo de arquivo não permitido.', 'danger')
-                return render_template('teacher/question_form.html', title='Nova Questão',
-                                       form=form)
+        saved_images = []
+        try:
+            image_path = _save_uploaded_image_field(form.image.data)
+            if image_path:
+                saved_images.append(image_path)
 
-        question = Question(
-            subject_id=form.subject_id.data,
-            text=form.text.data,
-            image_path=image_path,
-            explanation=form.explanation.data,
-            created_by=current_user.id
-        )
-        db.session.add(question)
-        db.session.flush()
+            explanation_image_path = _save_uploaded_image_field(form.explanation_image.data)
+            if explanation_image_path:
+                saved_images.append(explanation_image_path)
 
-        options_texts = [
-            form.option_1.data, form.option_2.data, form.option_3.data,
-            form.option_4.data, form.option_5.data
-        ]
-        correct_idx = int(form.correct_option.data) - 1
-        for i, text in enumerate(options_texts):
-            opt = AnswerOption(
-                question_id=question.id,
-                text=text,
-                is_correct=(i == correct_idx)
+            option_image_paths = []
+            for field_name in _OPTION_IMAGE_FIELD_NAMES:
+                option_image_path = _save_uploaded_image_field(getattr(form, field_name).data)
+                option_image_paths.append(option_image_path)
+                if option_image_path:
+                    saved_images.append(option_image_path)
+
+            question = Question(
+                subject_id=form.subject_id.data,
+                text=form.text.data,
+                image_path=image_path,
+                explanation=form.explanation.data,
+                explanation_image_path=explanation_image_path,
+                created_by=current_user.id
             )
-            db.session.add(opt)
+            db.session.add(question)
+            db.session.flush()
 
-        db.session.commit()
+            options_texts = [
+                form.option_1.data, form.option_2.data, form.option_3.data,
+                form.option_4.data, form.option_5.data
+            ]
+            correct_idx = int(form.correct_option.data) - 1
+            for i, text in enumerate(options_texts):
+                opt = AnswerOption(
+                    question_id=question.id,
+                    text=text,
+                    image_path=option_image_paths[i],
+                    is_correct=(i == correct_idx)
+                )
+                db.session.add(opt)
+
+            db.session.commit()
+        except (ValueError, RuntimeError) as exc:
+            db.session.rollback()
+            _delete_images(saved_images)
+            flash(str(exc), 'danger')
+            return render_template('teacher/question_form.html', title='Nova Questão',
+                                   form=form, existing_options=[])
+        except Exception:
+            db.session.rollback()
+            _delete_images(saved_images)
+            raise
+
         flash('Questão criada com sucesso!', 'success')
         return redirect(url_for('teacher.questions'))
 
-    return render_template('teacher/question_form.html', title='Nova Questão', form=form)
+    return render_template('teacher/question_form.html', title='Nova Questão', form=form,
+                           existing_options=[])
 
 
 @bp.route('/questoes/<int:question_id>/editar', methods=['GET', 'POST'])
@@ -329,7 +419,7 @@ def edit_question(question_id):
         abort(403)
 
     subjects_list = Subject.query.filter_by(created_by=current_user.id).order_by(Subject.name).all()
-    options = question.answer_options.all()
+    options = question.answer_options.order_by(AnswerOption.id.asc()).all()
 
     form = QuestionForm()
     form.subject_id.choices = [(s.id, s.name) for s in subjects_list]
@@ -350,26 +440,53 @@ def edit_question(question_id):
                     break
 
     if form.validate_on_submit():
-        image_path = question.image_path
-        if form.image.data and form.image.data.filename:
-            if allowed_file(form.image.data.filename):
-                try:
-                    if question.image_path:
-                        delete_image(question.image_path)
-                    image_path = save_image(form.image.data)
-                except (ValueError, RuntimeError) as exc:
-                    flash(str(exc), 'danger')
-                    return render_template('teacher/question_form.html', title='Editar Questão',
-                                           form=form, question=question)
-            else:
-                flash('Tipo de arquivo não permitido.', 'danger')
-                return render_template('teacher/question_form.html', title='Editar Questão',
-                                       form=form, question=question)
+        previous_option_paths = [opt.image_path for opt in options]
+        new_uploaded_images = []
+
+        try:
+            image_path = _save_uploaded_image_field(form.image.data, current_path=question.image_path)
+            if image_path != question.image_path and image_path:
+                new_uploaded_images.append(image_path)
+
+            explanation_image_path = _save_uploaded_image_field(
+                form.explanation_image.data,
+                current_path=question.explanation_image_path,
+            )
+            if (explanation_image_path != question.explanation_image_path
+                    and explanation_image_path):
+                new_uploaded_images.append(explanation_image_path)
+
+            option_image_paths = []
+            for index, field_name in enumerate(_OPTION_IMAGE_FIELD_NAMES):
+                current_option_path = previous_option_paths[index] if index < len(previous_option_paths) else None
+                option_image_path = _save_uploaded_image_field(
+                    getattr(form, field_name).data,
+                    current_path=current_option_path,
+                )
+                option_image_paths.append(option_image_path)
+                if option_image_path != current_option_path and option_image_path:
+                    new_uploaded_images.append(option_image_path)
+        except (ValueError, RuntimeError) as exc:
+            _delete_images(new_uploaded_images)
+            flash(str(exc), 'danger')
+            return render_template('teacher/question_form.html', title='Editar Questão',
+                                   form=form, question=question, existing_options=options)
+
+        old_images_to_delete = []
+        if image_path != question.image_path and question.image_path:
+            old_images_to_delete.append(question.image_path)
+        if (explanation_image_path != question.explanation_image_path
+                and question.explanation_image_path):
+            old_images_to_delete.append(question.explanation_image_path)
+        for index, previous_option_path in enumerate(previous_option_paths):
+            if index < len(option_image_paths) and option_image_paths[index] != previous_option_path and previous_option_path:
+                old_images_to_delete.append(previous_option_path)
 
         question.subject_id = form.subject_id.data
         question.text = form.text.data
         question.image_path = image_path
         question.explanation = form.explanation.data
+        question.explanation_image_path = explanation_image_path
 
         options_texts = [
             form.option_1.data, form.option_2.data, form.option_3.data,
@@ -377,17 +494,33 @@ def edit_question(question_id):
         ]
         correct_idx = int(form.correct_option.data) - 1
 
-        # Update existing options or create new ones
-        for i, opt in enumerate(options[:5]):
-            opt.text = options_texts[i]
-            opt.is_correct = (i == correct_idx)
+        for i, text in enumerate(options_texts):
+            if i < len(options):
+                opt = options[i]
+                opt.text = text
+                opt.image_path = option_image_paths[i]
+                opt.is_correct = (i == correct_idx)
+            else:
+                db.session.add(AnswerOption(
+                    question_id=question.id,
+                    text=text,
+                    image_path=option_image_paths[i],
+                    is_correct=(i == correct_idx)
+                ))
 
-        db.session.commit()
+        try:
+            db.session.commit()
+        except Exception:
+            db.session.rollback()
+            _delete_images(new_uploaded_images)
+            raise
+
+        _delete_images(old_images_to_delete)
         flash('Questão atualizada com sucesso!', 'success')
         return redirect(url_for('teacher.questions'))
 
     return render_template('teacher/question_form.html', title='Editar Questão',
-                           form=form, question=question)
+                           form=form, question=question, existing_options=options)
 
 
 @bp.route('/questoes/<int:question_id>/excluir', methods=['POST'])
@@ -397,8 +530,13 @@ def delete_question(question_id):
     question = Question.query.get_or_404(question_id)
     if question.created_by != current_user.id:
         abort(403)
-    if question.image_path:
-        delete_image(question.image_path)
+
+    _delete_images([
+        question.image_path,
+        question.explanation_image_path,
+        *[option.image_path for option in question.answer_options.all()],
+    ])
+
     db.session.delete(question)
     db.session.commit()
     flash('Questão excluída.', 'success')
@@ -668,6 +806,25 @@ def _save_imported_image_bytes(original_name, content_bytes):
     return save_image_bytes(original_name, content_bytes)
 
 
+def _import_optional_package_image(image_file_name, package_images, image_stats):
+    image_file_name = os.path.basename(str(image_file_name or '')).strip()
+    if not image_file_name:
+        return None
+
+    image_bytes = package_images.get(image_file_name.lower())
+    if image_bytes is None:
+        image_stats['missing'] += 1
+        return None
+
+    try:
+        image_path = _save_imported_image_bytes(image_file_name, image_bytes)
+        image_stats['imported'] += 1
+        return image_path
+    except (ValueError, RuntimeError):
+        image_stats['invalid'] += 1
+        return None
+
+
 def _parse_yaml_questions(raw_bytes):
     """Parse and validate YAML bytes; return list of validated question dicts.
 
@@ -675,15 +832,17 @@ def _parse_yaml_questions(raw_bytes):
 
         questions:
           - text: "Enunciado da questão"
-            explanation: "Explicação opcional"   # optional
-            correct: 1                           # 1-indexed (1–5)
-                        image_file: "q00001_enunciado.png"  # optional (must exist in ZIP)
-                        options:
-              - "Opção A"
-              - "Opção B"
-              - "Opção C"
-              - "Opção D"
-              - "Opção E"
+            image_file: "q00001_enunciado.png"              # optional
+            explanation: "Explicação opcional"              # optional
+            explanation_image_file: "q00001_explicacao.png" # optional
+            correct: 1                                       # 1-indexed (1–5)
+            options:
+              - text: "Opção A"
+                image_file: "q00001_opcao_1.png"           # optional
+              - text: "Opção B"
+              - text: "Opção C"
+              - text: "Opção D"
+              - text: "Opção E"
 
     Raises ValueError with a human-readable message on any structural problem.
     """
@@ -711,15 +870,29 @@ def _parse_yaml_questions(raw_bytes):
             raise ValueError(f'{prefix}: campo "text" é obrigatório e não pode ser vazio.')
 
         # options
-        options = item.get('options')
-        if not isinstance(options, list) or len(options) != _YAML_REQUIRED_OPTIONS:
+        options_raw = item.get('options')
+        if not isinstance(options_raw, list) or len(options_raw) != _YAML_REQUIRED_OPTIONS:
             raise ValueError(
                 f'{prefix}: "options" deve ser uma lista com exatamente '
                 f'{_YAML_REQUIRED_OPTIONS} itens.'
             )
-        options = [str(opt).strip() for opt in options]
-        if any(opt == '' for opt in options):
-            raise ValueError(f'{prefix}: nenhuma opção pode ser vazia.')
+
+        options = []
+        for option_idx, opt in enumerate(options_raw, start=1):
+            if isinstance(opt, dict):
+                opt_text = str(opt.get('text', '') or '').strip()
+                opt_image_file = os.path.basename(str(opt.get('image_file', '') or '').strip())
+            else:
+                opt_text = str(opt).strip()
+                opt_image_file = ''
+
+            if not opt_text:
+                raise ValueError(f'{prefix}: a opção {option_idx} não pode ser vazia.')
+
+            options.append({
+                'text': opt_text,
+                'image_file': opt_image_file,
+            })
 
         # correct
         correct_raw = item.get('correct')
@@ -736,12 +909,16 @@ def _parse_yaml_questions(raw_bytes):
             )
 
         explanation = str(item.get('explanation', '') or '').strip()
-        image_file = str(item.get('image_file', '') or '').strip()
+        image_file = os.path.basename(str(item.get('image_file', '') or '').strip())
+        explanation_image_file = os.path.basename(
+            str(item.get('explanation_image_file', '') or '').strip()
+        )
 
         parsed.append({
             'text': text,
             'explanation': explanation,
             'image_file': image_file,
+            'explanation_image_file': explanation_image_file,
             'options': options,
             'correct_idx': correct_idx - 1,  # convert to 0-based
         })
@@ -783,38 +960,40 @@ def import_questions():
                                    title='Importar Questões', form=form)
 
         imported = 0
-        images_imported = 0
-        images_missing = 0
-        images_invalid = 0
+        image_stats = {'imported': 0, 'missing': 0, 'invalid': 0}
 
         for q_data in parsed:
-            image_path = None
-            image_file_name = os.path.basename(q_data.get('image_file', '')).strip()
-            if image_file_name:
-                image_bytes = package_images.get(image_file_name.lower())
-                if image_bytes is None:
-                    images_missing += 1
-                else:
-                    try:
-                        image_path = _save_imported_image_bytes(image_file_name, image_bytes)
-                        images_imported += 1
-                    except (ValueError, RuntimeError):
-                        images_invalid += 1
+            image_path = _import_optional_package_image(
+                q_data.get('image_file'),
+                package_images,
+                image_stats,
+            )
+            explanation_image_path = _import_optional_package_image(
+                q_data.get('explanation_image_file'),
+                package_images,
+                image_stats,
+            )
 
             question = Question(
                 subject_id=subject.id,
                 text=q_data['text'],
                 explanation=q_data['explanation'] or None,
                 image_path=image_path,
+                explanation_image_path=explanation_image_path,
                 created_by=current_user.id,
             )
             db.session.add(question)
             db.session.flush()
 
-            for i, opt_text in enumerate(q_data['options']):
+            for i, opt_data in enumerate(q_data['options']):
                 opt = AnswerOption(
                     question_id=question.id,
-                    text=opt_text,
+                    text=opt_data['text'],
+                    image_path=_import_optional_package_image(
+                        opt_data.get('image_file'),
+                        package_images,
+                        image_stats,
+                    ),
                     is_correct=(i == q_data['correct_idx']),
                 )
                 db.session.add(opt)
@@ -824,9 +1003,9 @@ def import_questions():
         db.session.commit()
         flash(
             f'{imported} questão(ões) importada(s) para "{subject.name}". '
-            f'Imagens importadas: {images_imported}. '
-            f'Não encontradas: {images_missing}. '
-            f'Inválidas: {images_invalid}.',
+            f'Imagens importadas: {image_stats["imported"]}. '
+            f'Não encontradas: {image_stats["missing"]}. '
+            f'Inválidas: {image_stats["invalid"]}.',
             'success',
         )
         return redirect(url_for('teacher.questions', subject_id=subject.id))
@@ -854,18 +1033,21 @@ def yaml_template():
         "#   - O campo 'correct' indica o número da opção correta (1 a 5).\n"
         "#   - O campo 'image_file' é opcional e deve apontar para uma imagem no ZIP.\n"
         "#   - O campo 'explanation' é opcional (aparece apenas no gabarito).\n"
+        "#   - 'explanation_image_file' e imagens das opções também são opcionais.\n"
         "\n"
         "questions:\n"
         "  - text: \"Qual é o resultado de 2 + 2?\"\n"
         "    image_file: \"q00001_soma.png\"\n"
         "    explanation: \"A soma de 2 com 2 é igual a 4.\"\n"
+        "    explanation_image_file: \"q00001_explicacao.png\"\n"
         "    correct: 3\n"
         "    options:\n"
-        "      - \"2\"\n"
-        "      - \"3\"\n"
-        "      - \"4\"\n"
-        "      - \"5\"\n"
-        "      - \"6\"\n"
+        "      - text: \"2\"\n"
+        "      - text: \"3\"\n"
+        "      - text: \"4\"\n"
+        "        image_file: \"q00001_opcao_3.png\"\n"
+        "      - text: \"5\"\n"
+        "      - text: \"6\"\n"
         "\n"
         "  - text: \"Qual planeta é conhecido como Planeta Vermelho?\"\n"
         "    correct: 2\n"

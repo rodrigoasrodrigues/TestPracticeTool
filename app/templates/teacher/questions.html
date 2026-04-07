@@ -68,8 +68,19 @@
                             <span class="badge bg-primary-subtle text-primary">{{ q.subject.name }}</span>
                         </td>
                         <td>
-                            {% if q.image_path %}
-                            <i class="bi bi-image text-success" title="Tem imagem"></i>
+                            {% set option_images = q.answer_options.all() | selectattr('image_path') | list %}
+                            {% if q.image_path or q.explanation_image_path or option_images %}
+                            <div class="d-flex gap-2 align-items-center">
+                                {% if q.image_path %}
+                                <i class="bi bi-image text-success" title="Imagem no enunciado"></i>
+                                {% endif %}
+                                {% if q.explanation_image_path %}
+                                <i class="bi bi-lightbulb text-info" title="Imagem na explicação"></i>
+                                {% endif %}
+                                {% if option_images %}
+                                <i class="bi bi-ui-radios text-warning" title="Imagem em uma ou mais respostas"></i>
+                                {% endif %}
+                            </div>
                             {% else %}
                             <span class="text-muted">—</span>
                             {% endif %}

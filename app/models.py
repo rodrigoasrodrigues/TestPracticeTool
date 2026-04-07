@@ -73,6 +73,7 @@ class Question(db.Model):
     text = db.Column(db.Text, nullable=False)
     image_path = db.Column(db.String(256))
     explanation = db.Column(db.Text)
+    explanation_image_path = db.Column(db.String(256))
     created_by = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
     created_at = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc))
 
@@ -92,6 +93,7 @@ class AnswerOption(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     question_id = db.Column(db.Integer, db.ForeignKey('questions.id'), nullable=False)
     text = db.Column(db.Text, nullable=False)
+    image_path = db.Column(db.String(256))
     is_correct = db.Column(db.Boolean, default=False, nullable=False)
 
     def __repr__(self):

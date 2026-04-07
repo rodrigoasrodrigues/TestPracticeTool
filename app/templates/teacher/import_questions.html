@@ -69,25 +69,28 @@
 #   ├── materia_questoes.yaml
 #   └── images/
 #       ├── q00001_enunciado.png
-#       └── q00002_enunciado.jpg
+#       ├── q00001_explicacao.png
+#       └── q00001_opcao_3.png
 
 # Exemplo de YAML dentro do pacote
 questions:
   - text: "Enunciado da questão"
-    image_file: "q00001_enunciado.png"   # opcional (nome do arquivo no ZIP)
-    explanation: "Explicação (só no gabarito)"  # opcional
+    image_file: "q00001_enunciado.png"            # opcional
+    explanation: "Explicação (só no gabarito)"    # opcional
+    explanation_image_file: "q00001_explicacao.png"  # opcional
     correct: 3          # número da opção correta (1–5)
     options:
-      - "Opção A"
-      - "Opção B"
-      - "Opção C"      # correta (correct: 3)
-      - "Opção D"
-      - "Opção E"
+      - text: "Opção A"
+      - text: "Opção B"
+      - text: "Opção C"      # correta (correct: 3)
+        image_file: "q00001_opcao_3.png"  # opcional
+      - text: "Opção D"
+      - text: "Opção E"
 
   - text: "Segunda questão..."
     correct: 1
     options:
-      - "Opção A"      # correta (correct: 1)
+      - "Opção A"      # também aceita o formato simples antigo
       - "Opção B"
       - "Opção C"
       - "Opção D"
@@ -105,11 +108,11 @@ questions:
                         </li>
                         <li class="mb-1">
                             <i class="bi bi-check-circle-fill text-success me-1"></i>
-                            <code>explanation</code> é opcional e aparece apenas no gabarito.
+                            <code>explanation</code> e <code>explanation_image_file</code> são opcionais e aparecem apenas no gabarito.
                         </li>
                         <li class="mb-1">
                             <i class="bi bi-check-circle-fill text-success me-1"></i>
-                            <code>image_file</code> é opcional e deve apontar para uma imagem dentro do ZIP.
+                            <code>image_file</code> também pode ser usado nas opções para associar imagens às respostas.
                         </li>
                         <li>
                             <i class="bi bi-check-circle-fill text-success me-1"></i>

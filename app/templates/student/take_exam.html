@@ -83,7 +83,14 @@
                         <label for="opt_{{ option.id }}"
                                class="option-label d-flex align-items-start gap-3 border rounded p-3 w-100">
                             <span class="badge bg-secondary flex-shrink-0 mt-1">{{ loop.index }}</span>
-                            <span>{{ option.answer_option.text }}</span>
+                            <span class="flex-grow-1">
+                                <span class="d-block">{{ option.answer_option.text }}</span>
+                                {% if option.answer_option.image_path %}
+                                <img src="{{ image_url(option.answer_option.image_path) }}"
+                                     class="img-fluid rounded mt-2" style="max-height: 180px;"
+                                     alt="Imagem da opção {{ loop.index }}">
+                                {% endif %}
+                            </span>
                         </label>
                     </div>
                     {% endfor %}

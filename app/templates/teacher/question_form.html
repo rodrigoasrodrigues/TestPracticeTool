@@ -36,7 +36,10 @@
 
                         <div class="mb-3">
                             {{ form.image.label(class="form-label fw-semibold") }}
-                            {{ form.image(class="form-control") }}
+                            {{ form.image(class="form-control" + (" is-invalid" if form.image.errors else "")) }}
+                            {% for error in form.image.errors %}
+                            <div class="invalid-feedback d-block">{{ error }}</div>
+                            {% endfor %}
                             {% if question and question.image_path %}
                             <div class="mt-2">
                                 <img src="{{ image_url(question.image_path) }}"
@@ -50,10 +53,25 @@
                             {{ form.explanation.label(class="form-label fw-semibold") }}
                             <div class="text-muted small mb-1">
                                 <i class="bi bi-info-circle me-1"></i>
-                                Esta explicação só aparece no gabarito, não na prova.
+                                Esta explicação só aparece no gabarito, não na prova, e agora pode ter imagem.
                             </div>
                             {{ form.explanation(class="form-control", rows=3,
                                placeholder="Explique por que a resposta está correta...") }}
+                        </div>
+
+                        <div class="mb-3">
+                            {{ form.explanation_image.label(class="form-label fw-semibold") }}
+                            {{ form.explanation_image(class="form-control" + (" is-invalid" if form.explanation_image.errors else "")) }}
+                            {% for error in form.explanation_image.errors %}
+                            <div class="invalid-feedback d-block">{{ error }}</div>
+                            {% endfor %}
+                            {% if question and question.explanation_image_path %}
+                            <div class="mt-2">
+                                <img src="{{ image_url(question.explanation_image_path) }}"
+                                     class="img-thumbnail" style="max-height: 150px;" alt="Imagem atual da explicação">
+                                <small class="text-muted d-block mt-1">Imagem atual da explicação. Faça upload de uma nova para substituí-la.</small>
+                            </div>
+                            {% endif %}
                         </div>
 
                         <hr>
@@ -66,8 +84,15 @@
                             {{ form.correct_option(class="form-select w-auto") }}
                         </div>
 
-                        {% for i, field in [('A', form.option_1), ('B', form.option_2), ('C', form.option_3), ('D', form.option_4), ('E', form.option_5)] %}
-                        <div class="mb-3">
+                        {% set existing_options = existing_options if existing_options is defined else [] %}
+                        {% for i, field, image_field, existing_option in [
+                            ('A', form.option_1, form.option_1_image, existing_options[0] if existing_options|length > 0 else none),
+                            ('B', form.option_2, form.option_2_image, existing_options[1] if existing_options|length > 1 else none),
+                            ('C', form.option_3, form.option_3_image, existing_options[2] if existing_options|length > 2 else none),
+                            ('D', form.option_4, form.option_4_image, existing_options[3] if existing_options|length > 3 else none),
+                            ('E', form.option_5, form.option_5_image, existing_options[4] if existing_options|length > 4 else none)
+                        ] %}
+                        <div class="mb-3 border rounded p-3 bg-light-subtle">
                             <label class="form-label fw-semibold">
                                 <span class="badge bg-secondary me-1">{{ i }}</span>
                                 {{ field.label.text }}
@@ -75,8 +100,23 @@
                             {{ field(class="form-control" + (" is-invalid" if field.errors else ""),
                                rows=2, placeholder="Opção {{ i }}...") }}
                             {% for error in field.errors %}
-                            <div class="invalid-feedback">{{ error }}</div>
+                            <div class="invalid-feedback d-block">{{ error }}</div>
                             {% endfor %}
+
+                            <div class="mt-2">
+                                {{ image_field.label(class="form-label fw-semibold small") }}
+                                {{ image_field(class="form-control" + (" is-invalid" if image_field.errors else "")) }}
+                                {% for error in image_field.errors %}
+                                <div class="invalid-feedback d-block">{{ error }}</div>
+                                {% endfor %}
+                                {% if existing_option and existing_option.image_path %}
+                                <div class="mt-2">
+                                    <img src="{{ image_url(existing_option.image_path) }}"
+                                         class="img-thumbnail" style="max-height: 120px;" alt="Imagem atual da opção {{ i }}">
+                                    <small class="text-muted d-block mt-1">Imagem atual da opção {{ i }}. Faça upload de uma nova para substituí-la.</small>
+                                </div>
+                                {% endif %}
+                            </div>
                         </div>
                         {% endfor %}
 

@@ -36,7 +36,14 @@
                 {% for option in eq.options %}
                 <li class="list-group-item {{ 'list-group-item-success' if option.answer_option.is_correct else '' }}">
                     <span class="badge bg-secondary me-2">{{ loop.index }}</span>
-                    {{ option.answer_option.text }}
+                    <div class="d-inline-block align-middle" style="max-width: calc(100% - 60px);">
+                        <div>{{ option.answer_option.text }}</div>
+                        {% if option.answer_option.image_path %}
+                        <img src="{{ image_url(option.answer_option.image_path) }}"
+                             class="img-fluid rounded mt-2" style="max-height: 180px;"
+                             alt="Imagem da opção {{ loop.index }}">
+                        {% endif %}
+                    </div>
                     {% if option.answer_option.is_correct %}
                     <span class="badge bg-success ms-2">CORRETA</span>
                     {% endif %}
@@ -44,10 +51,20 @@
                 {% endfor %}
             </ul>
 
-            {% if eq.question.explanation %}
+            {% if eq.question.explanation or eq.question.explanation_image_path %}
             <div class="alert alert-info mb-0">
                 <i class="bi bi-lightbulb-fill me-2"></i>
+                {% if eq.question.explanation %}
                 <strong>Explicação:</strong> {{ eq.question.explanation }}
+                {% else %}
+                <strong>Explicação visual:</strong>
+                {% endif %}
+                {% if eq.question.explanation_image_path %}
+                <div class="mt-2">
+                    <img src="{{ image_url(eq.question.explanation_image_path) }}"
+                         class="img-fluid rounded" style="max-height: 220px;" alt="Imagem da explicação">
+                </div>
+                {% endif %}
             </div>
             {% endif %}
         </div>

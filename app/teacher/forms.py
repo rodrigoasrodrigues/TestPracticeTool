@@ -5,6 +5,19 @@ from wtforms import (StringField, TextAreaField, SelectField, IntegerField,
 from wtforms.validators import DataRequired, Length, Optional, NumberRange, ValidationError
 
 
+_IMAGE_EXTENSIONS = ['png', 'jpg', 'jpeg', 'gif', 'webp']
+
+
+def _optional_image_field(label):
+    return FileField(
+        label,
+        validators=[
+            Optional(),
+            FileAllowed(_IMAGE_EXTENSIONS, 'Apenas imagens são permitidas.'),
+        ],
+    )
+
+
 class SubjectForm(FlaskForm):
     name = StringField('Nome da Matéria', validators=[DataRequired(), Length(max=128)])
     description = TextAreaField('Descrição', validators=[Optional()])
@@ -22,16 +35,19 @@ class AnswerOptionForm(FlaskForm):
 class QuestionForm(FlaskForm):
     subject_id = SelectField('Matéria', coerce=int, validators=[DataRequired()])
     text = TextAreaField('Enunciado da Questão', validators=[DataRequired()])
-    image = FileField('Imagem (opcional)',
-                      validators=[Optional(),
-                                  FileAllowed(['png', 'jpg', 'jpeg', 'gif', 'webp'],
-                                              'Apenas imagens são permitidas.')])
+    image = _optional_image_field('Imagem da Questão (opcional)')
     explanation = TextAreaField('Explicação da Resposta (para gabarito)', validators=[Optional()])
+    explanation_image = _optional_image_field('Imagem da Explicação (opcional)')
     option_1 = TextAreaField('Opção A', validators=[DataRequired()])
+    option_1_image = _optional_image_field('Imagem da Opção A (opcional)')
     option_2 = TextAreaField('Opção B', validators=[DataRequired()])
+    option_2_image = _optional_image_field('Imagem da Opção B (opcional)')
     option_3 = TextAreaField('Opção C', validators=[DataRequired()])
+    option_3_image = _optional_image_field('Imagem da Opção C (opcional)')
     option_4 = TextAreaField('Opção D', validators=[DataRequired()])
+    option_4_image = _optional_image_field('Imagem da Opção D (opcional)')
     option_5 = TextAreaField('Opção E', validators=[DataRequired()])
+    option_5_image = _optional_image_field('Imagem da Opção E (opcional)')
     correct_option = SelectField('Opção Correta',
                                  choices=[('1', 'A'), ('2', 'B'), ('3', 'C'),
                                           ('4', 'D'), ('5', 'E')],

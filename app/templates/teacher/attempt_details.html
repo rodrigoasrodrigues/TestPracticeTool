@@ -55,7 +55,14 @@
                     {{ 'list-group-item-success' if correct else '' }}
                     {{ 'list-group-item-danger' if selected and not correct else '' }}">
                     <span class="badge bg-secondary me-2">{{ loop.index }}</span>
-                    {{ opt.answer_option.text }}
+                    <div class="d-inline-block align-middle" style="max-width: calc(100% - 60px);">
+                        <div>{{ opt.answer_option.text }}</div>
+                        {% if opt.answer_option.image_path %}
+                        <img src="{{ image_url(opt.answer_option.image_path) }}"
+                             class="img-fluid rounded mt-2" style="max-height: 180px;"
+                             alt="Imagem da opção {{ loop.index }}">
+                        {% endif %}
+                    </div>
                     {% if selected %}
                     <span class="badge {{ 'bg-success' if correct else 'bg-danger' }} ms-2">
                         Resposta do aluno
@@ -67,10 +74,20 @@
                 </li>
                 {% endfor %}
             </ul>
-            {% if eq.question.explanation %}
+            {% if eq.question.explanation or eq.question.explanation_image_path %}
             <div class="alert alert-info mb-0">
                 <i class="bi bi-lightbulb-fill me-2"></i>
+                {% if eq.question.explanation %}
                 <strong>Explicação:</strong> {{ eq.question.explanation }}
+                {% else %}
+                <strong>Explicação visual:</strong>
+                {% endif %}
+                {% if eq.question.explanation_image_path %}
+                <div class="mt-2">
+                    <img src="{{ image_url(eq.question.explanation_image_path) }}"
+                         class="img-fluid rounded" style="max-height: 220px;" alt="Imagem da explicação">
+                </div>
+                {% endif %}
             </div>
             {% endif %}
         </div>
