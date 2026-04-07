@@ -28,3 +28,12 @@ class RegistrationForm(FlaskForm):
     def validate_email(self, field):
         if User.query.filter_by(email=field.data).first():
             raise ValidationError('E-mail já cadastrado.')
+
+
+class ChangePasswordForm(FlaskForm):
+    current_password = PasswordField('Senha atual', validators=[DataRequired()])
+    new_password = PasswordField('Nova senha', validators=[DataRequired(), Length(min=6)])
+    new_password2 = PasswordField('Confirmar nova senha',
+                                  validators=[DataRequired(), EqualTo('new_password',
+                                              message='As senhas devem ser iguais.')])
+    submit = SubmitField('Alterar senha')

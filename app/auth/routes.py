@@ -3,7 +3,7 @@ from flask_login import login_user, logout_user, current_user, login_required
 from urllib.parse import urlsplit
 from app import db
 from app.auth import bp
-from app.auth.forms import LoginForm, RegistrationForm
+from app.auth.forms import LoginForm, RegistrationForm, ChangePasswordForm
 from app.models import User
 
 
@@ -66,3 +66,20 @@ def register():
                   'acessar o sistema.', 'info')
         return redirect(url_for('auth.login'))
     return render_template('auth/register.html', title='Registrar', form=form)
+
+
+@bp.route('/alterar-senha', methods=['GET', 'POST'])
+@login_required
+def change_password():
+    form = ChangePasswordForm()
+    if form.validate_on_submit():
+        if not current_user.check_password(form.current_password.data):
+            flash('A senha atual está incorreta.', 'danger')
+        elif form.current_password.data == form.new_password.data:
+            flash('A nova senha deve ser diferente da senha atual.', 'warning')
+        else:
+            current_user.set_password(form.new_password.data)
+            db.session.commit()
+            flash('Senha alterada com sucesso!', 'success')
+            return redirect(url_for('main.index'))
+    return render_template('auth/change_password.html', title='Alterar Senha', form=form)
