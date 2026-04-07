@@ -119,6 +119,7 @@ def _build_subject_questions_payload(subject, questions):
         item = {
             'id': question.id,
             'text': question.text,
+            'reference': question.reference_text or '',
             'explanation': question.explanation or '',
             'correct': correct_idx,
             'options': options_payload,
@@ -422,6 +423,7 @@ def create_question():
             question = Question(
                 subject_id=form.subject_id.data,
                 text=form.text.data,
+                reference_text=form.reference.data,
                 image_path=image_path,
                 explanation=form.explanation.data,
                 explanation_image_path=explanation_image_path,
@@ -483,6 +485,7 @@ def edit_question(question_id):
 
     if request.method == 'GET':
         form.subject_id.data = question.subject_id
+        form.reference.data = question.reference_text
         form.text.data = question.text
         form.explanation.data = question.explanation
         if len(options) >= 5:
@@ -540,6 +543,7 @@ def edit_question(question_id):
                 old_images_to_delete.append(previous_option_path)
 
         question.subject_id = form.subject_id.data
+        question.reference_text = form.reference.data
         question.text = form.text.data
         question.image_path = image_path
         question.explanation = form.explanation.data
@@ -965,6 +969,7 @@ def _parse_yaml_questions(raw_bytes):
                 f'(recebido: {correct_idx}).'
             )
 
+        reference = str(item.get('reference', '') or '').strip()
         explanation = str(item.get('explanation', '') or '').strip()
         image_file = os.path.basename(str(item.get('image_file', '') or '').strip())
         explanation_image_file = os.path.basename(
@@ -973,6 +978,7 @@ def _parse_yaml_questions(raw_bytes):
 
         parsed.append({
             'text': text,
+            'reference': reference,
             'explanation': explanation,
             'image_file': image_file,
             'explanation_image_file': explanation_image_file,
@@ -1034,6 +1040,7 @@ def import_questions():
             question = Question(
                 subject_id=subject.id,
                 text=q_data['text'],
+                reference_text=q_data['reference'] or None,
                 explanation=q_data['explanation'] or None,
                 image_path=image_path,
                 explanation_image_path=explanation_image_path,
@@ -1089,11 +1096,13 @@ def yaml_template():
         "#   - Cada questão deve ter exatamente 5 opções.\n"
         "#   - O campo 'correct' indica o número da opção correta (1 a 5).\n"
         "#   - O campo 'image_file' é opcional e deve apontar para uma imagem no ZIP.\n"
+        "#   - O campo 'reference' é opcional e serve como texto de apoio na prova.\n"
         "#   - O campo 'explanation' é opcional (aparece apenas no gabarito).\n"
         "#   - 'explanation_image_file' e imagens das opções também são opcionais.\n"
         "\n"
         "questions:\n"
         "  - text: \"Qual é o resultado de 2 + 2?\"\n"
+        "    reference: \"Lembre que somar dois números positivos aumenta o resultado.\"\n"
         "    image_file: \"q00001_soma.png\"\n"
         "    explanation: \"A soma de 2 com 2 é igual a 4.\"\n"
         "    explanation_image_file: \"q00001_explicacao.png\"\n"

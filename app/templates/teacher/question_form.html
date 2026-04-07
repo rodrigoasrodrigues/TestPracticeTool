@@ -26,6 +26,18 @@
                         </div>
 
                         <div class="mb-3">
+                            {{ form.reference.label(class="form-label fw-semibold") }}
+                            {{ form.reference(class="form-control" + (" is-invalid" if form.reference.errors else ""),
+                               rows=6, placeholder="Digite aqui um texto de apoio, contexto ou trecho para consulta do aluno...") }}
+                            <div class="form-text">
+                                Este conteúdo aparece no início da questão em uma caixa azul colapsável e também aceita LaTeX.
+                            </div>
+                            {% for error in form.reference.errors %}
+                            <div class="invalid-feedback d-block">{{ error }}</div>
+                            {% endfor %}
+                        </div>
+
+                        <div class="mb-3">
                             {{ form.text.label(class="form-label fw-semibold") }}
                             {{ form.text(class="form-control" + (" is-invalid" if form.text.errors else ""),
                                rows=4, placeholder="Digite o enunciado da questão...") }}

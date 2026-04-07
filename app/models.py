@@ -71,6 +71,7 @@ class Question(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     subject_id = db.Column(db.Integer, db.ForeignKey('subjects.id'), nullable=False)
     text = db.Column(db.Text, nullable=False)
+    reference_text = db.Column(db.Text)
     image_path = db.Column(db.String(256))
     explanation = db.Column(db.Text)
     explanation_image_path = db.Column(db.String(256))

@@ -63,6 +63,24 @@
                 </span>
             </div>
             <div class="card-body">
+                {% if eq.question.reference_text %}
+                <div class="bg-primary-subtle border border-primary-subtle rounded p-3 mb-3">
+                    <div class="d-flex flex-wrap justify-content-between align-items-center gap-2">
+                        <div class="fw-semibold text-primary">
+                            <i class="bi bi-journal-text me-1"></i>Referência
+                        </div>
+                        <button class="btn btn-sm btn-outline-primary" type="button"
+                                data-bs-toggle="collapse" data-bs-target="#reference-{{ eq.id }}"
+                                aria-expanded="false" aria-controls="reference-{{ eq.id }}">
+                            Mostrar/Ocultar
+                        </button>
+                    </div>
+                    <div id="reference-{{ eq.id }}" class="collapse mt-3">
+                        <div class="math-content">{{ eq.question.reference_text|format_math_text }}</div>
+                    </div>
+                </div>
+                {% endif %}
+
                 <div class="mb-3 fs-5 math-content">{{ eq.question.text|format_math_text }}</div>
                 {% if eq.question.image_path %}
                 <div class="mb-3">

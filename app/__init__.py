@@ -16,7 +16,7 @@ csrf = CSRFProtect()
 
 
 def _ensure_legacy_schema_updates(app):
-    """Add new optional image columns for older databases without requiring a manual migration."""
+    """Add new optional question/media columns for older databases without requiring a manual migration."""
     with app.app_context():
         inspector = inspect(db.engine)
         table_names = set(inspector.get_table_names())
@@ -24,6 +24,10 @@ def _ensure_legacy_schema_updates(app):
 
         if 'questions' in table_names:
             question_columns = {column['name'] for column in inspector.get_columns('questions')}
+            if 'reference_text' not in question_columns:
+                statements.append(
+                    text('ALTER TABLE questions ADD COLUMN reference_text TEXT')
+                )
             if 'explanation_image_path' not in question_columns:
                 statements.append(
                     text('ALTER TABLE questions ADD COLUMN explanation_image_path VARCHAR(256)')

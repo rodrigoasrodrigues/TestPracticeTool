@@ -75,6 +75,7 @@
 # Exemplo de YAML dentro do pacote
 questions:
   - text: "Enunciado da questão"
+    reference: "Texto de apoio ou contexto da questão"  # opcional
     image_file: "q00001_enunciado.png"            # opcional
     explanation: "Explicação (só no gabarito)"    # opcional
     explanation_image_file: "q00001_explicacao.png"  # opcional
@@ -105,6 +106,10 @@ questions:
                         <li class="mb-1">
                             <i class="bi bi-check-circle-fill text-success me-1"></i>
                             <code>correct</code> é o número (1–5) da opção correta.
+                        </li>
+                        <li class="mb-1">
+                            <i class="bi bi-check-circle-fill text-success me-1"></i>
+                            <code>reference</code> é opcional e aparece como texto de apoio na prova.
                         </li>
                         <li class="mb-1">
                             <i class="bi bi-check-circle-fill text-success me-1"></i>

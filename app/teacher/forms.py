@@ -34,6 +34,7 @@ class AnswerOptionForm(FlaskForm):
 
 class QuestionForm(FlaskForm):
     subject_id = SelectField('Matéria', coerce=int, validators=[DataRequired()])
+    reference = TextAreaField('Referência', validators=[Optional()])
     text = TextAreaField('Enunciado da Questão', validators=[DataRequired()])
     image = _optional_image_field('Imagem da Questão (opcional)')
     explanation = TextAreaField('Explicação da Resposta (para gabarito)', validators=[Optional()])
