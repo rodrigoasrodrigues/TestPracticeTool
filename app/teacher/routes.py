@@ -340,6 +340,53 @@ def questions():
                            selected_subject=subject_id)
 
 
+@bp.route('/questoes/mover', methods=['POST'])
+@login_required
+@teacher_required
+def move_questions():
+    selected_ids = [
+        int(question_id)
+        for question_id in request.form.getlist('question_ids')
+        if str(question_id).isdigit()
+    ]
+    target_subject_id = request.form.get('target_subject_id', type=int)
+    return_subject_id = request.form.get('return_subject_id', type=int)
+
+    redirect_kwargs = {'subject_id': return_subject_id} if return_subject_id else {}
+
+    if not selected_ids:
+        flash('Selecione ao menos uma questão para mover.', 'warning')
+        return redirect(url_for('teacher.questions', **redirect_kwargs))
+
+    target_subject = db.session.get(Subject, target_subject_id)
+    if not target_subject or target_subject.created_by != current_user.id:
+        flash('Selecione uma matéria de destino válida.', 'warning')
+        return redirect(url_for('teacher.questions', **redirect_kwargs))
+
+    questions_to_move = Question.query.filter(
+        Question.id.in_(selected_ids),
+        Question.created_by == current_user.id,
+    ).all()
+
+    if not questions_to_move:
+        flash('Nenhuma questão válida foi encontrada para mover.', 'warning')
+        return redirect(url_for('teacher.questions', **redirect_kwargs))
+
+    moved_count = 0
+    for question in questions_to_move:
+        if question.subject_id != target_subject.id:
+            question.subject_id = target_subject.id
+            moved_count += 1
+
+    if moved_count == 0:
+        flash('As questões selecionadas já estão na matéria de destino.', 'info')
+        return redirect(url_for('teacher.questions', **redirect_kwargs))
+
+    db.session.commit()
+    flash(f'{moved_count} questão(ões) movida(s) para "{target_subject.name}".', 'success')
+    return redirect(url_for('teacher.questions', **redirect_kwargs))
+
+
 @bp.route('/questoes/nova', methods=['GET', 'POST'])
 @login_required
 @teacher_required

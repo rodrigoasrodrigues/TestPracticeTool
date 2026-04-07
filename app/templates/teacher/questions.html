@@ -42,11 +42,41 @@
     </div>
 
     {% if questions %}
+    <form id="moveQuestionsForm" method="POST" action="{{ url_for('teacher.move_questions') }}"
+          class="card shadow-sm border-0 mb-3">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        {% if selected_subject %}
+        <input type="hidden" name="return_subject_id" value="{{ selected_subject }}">
+        {% endif %}
+        <div class="card-body d-flex flex-column flex-lg-row gap-3 align-items-lg-center justify-content-between">
+            <div>
+                <div class="fw-semibold">Mover questões em lote</div>
+                <div class="text-muted small">Selecione várias questões abaixo e escolha a matéria de destino.</div>
+            </div>
+            <div class="d-flex flex-column flex-sm-row gap-2 align-items-sm-center">
+                <select name="target_subject_id" class="form-select" required style="min-width: 220px;">
+                    <option value="">Mover para...</option>
+                    {% for subject in subjects %}
+                    <option value="{{ subject.id }}">{{ subject.name }}</option>
+                    {% endfor %}
+                </select>
+                <button type="submit" class="btn btn-primary" id="moveSelectedBtn" disabled>
+                    <i class="bi bi-arrow-left-right me-1"></i>Mover Selecionadas
+                </button>
+                <span class="text-muted small" id="selectedQuestionsCount">0 selecionada(s)</span>
+            </div>
+        </div>
+    </form>
+
     <div class="card shadow-sm">
         <div class="table-responsive">
             <table class="table table-hover align-middle mb-0">
                 <thead class="table-light">
                     <tr>
+                        <th class="text-center" style="width: 44px;">
+                            <input type="checkbox" class="form-check-input" id="selectAllQuestions"
+                                   title="Selecionar todas">
+                        </th>
                         <th>#</th>
                         <th>Enunciado</th>
                         <th>Matéria</th>
@@ -58,6 +88,14 @@
                 <tbody>
                     {% for q in questions %}
                     <tr>
+                        <td class="text-center">
+                            <input type="checkbox"
+                                   class="form-check-input question-checkbox"
+                                   name="question_ids"
+                                   value="{{ q.id }}"
+                                   form="moveQuestionsForm"
+                                   aria-label="Selecionar questão {{ q.id }}">
+                        </td>
                         <td class="text-muted small">{{ q.id }}</td>
                         <td>
                             <div class="text-truncate math-content" style="max-width: 350px;" title="{{ q.text }}">
@@ -119,4 +157,45 @@
     </div>
     {% endif %}
 </div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+    const selectAll = document.getElementById('selectAllQuestions');
+    const checkboxes = Array.from(document.querySelectorAll('.question-checkbox'));
+    const moveButton = document.getElementById('moveSelectedBtn');
+    const countLabel = document.getElementById('selectedQuestionsCount');
+
+    if (!checkboxes.length || !moveButton || !countLabel) {
+        return;
+    }
+
+    function updateSelectionState() {
+        const selectedCount = checkboxes.filter((checkbox) => checkbox.checked).length;
+        moveButton.disabled = selectedCount === 0;
+        countLabel.textContent = `${selectedCount} selecionada(s)`;
+
+        if (selectAll) {
+            selectAll.checked = selectedCount > 0 && selectedCount === checkboxes.length;
+            selectAll.indeterminate = selectedCount > 0 && selectedCount < checkboxes.length;
+        }
+    }
+
+    if (selectAll) {
+        selectAll.addEventListener('change', function () {
+            checkboxes.forEach((checkbox) => {
+                checkbox.checked = selectAll.checked;
+            });
+            updateSelectionState();
+        });
+    }
+
+    checkboxes.forEach((checkbox) => {
+        checkbox.addEventListener('change', updateSelectionState);
+    });
+
+    updateSelectionState();
+});
+</script>
 {% endblock %}
