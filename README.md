@@ -50,12 +50,14 @@ pip install -r requirements.txt
 cp .env.example .env
 # Edite .env com suas configurações de banco de dados
 
-# Inicialize o banco de dados
-python init_db.py
+# Inicialize o banco de dados (primeira instalação)
+flask db upgrade
 
 # Execute a aplicação
 python run.py
 ```
+
+> **Atualizações futuras**: sempre que houver novas funcionalidades, basta executar `flask db upgrade` para aplicar as migrações sem perder dados existentes.
 
 ### Variáveis de Ambiente
 

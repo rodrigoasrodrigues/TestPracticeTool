@@ -11,8 +11,8 @@ from werkzeug.utils import secure_filename
 from app import db
 from app.storage import delete_image, read_image_bytes, save_image, save_image_bytes
 from app.teacher import bp
-from app.teacher.forms import SubjectForm, QuestionForm, ExamForm, AssignExamForm, ImportQuestionsForm
-from app.models import (Subject, Question, AnswerOption, Exam, ExamQuestion,
+from app.teacher.forms import SubjectForm, SubjectGroupForm, QuestionForm, ExamForm, AssignExamForm, ImportQuestionsForm
+from app.models import (Subject, SubjectGroup, Question, AnswerOption, Exam, ExamQuestion,
                         ExamQuestionOption, StudentExam, ExamAttempt, AttemptAnswer, User)
 
 
@@ -185,6 +185,70 @@ def approve_user(user_id):
     return redirect(url_for('teacher.pending_users'))
 
 
+# ─── Subject Groups ───────────────────────────────────────────────────────────
+
+@bp.route('/grupos')
+@login_required
+@teacher_required
+def subject_groups():
+    groups = SubjectGroup.query.filter_by(created_by=current_user.id)\
+        .order_by(SubjectGroup.name).all()
+    return render_template('teacher/subject_groups.html', title='Grupos de Matérias', groups=groups)
+
+
+@bp.route('/grupos/novo', methods=['GET', 'POST'])
+@login_required
+@teacher_required
+def create_subject_group():
+    form = SubjectGroupForm()
+    if form.validate_on_submit():
+        group = SubjectGroup(
+            name=form.name.data,
+            description=form.description.data,
+            created_by=current_user.id
+        )
+        db.session.add(group)
+        db.session.commit()
+        flash(f'Grupo "{group.name}" criado com sucesso!', 'success')
+        return redirect(url_for('teacher.subject_groups'))
+    return render_template('teacher/subject_group_form.html', title='Novo Grupo de Matérias',
+                           form=form)
+
+
+@bp.route('/grupos/<int:group_id>/editar', methods=['GET', 'POST'])
+@login_required
+@teacher_required
+def edit_subject_group(group_id):
+    group = SubjectGroup.query.get_or_404(group_id)
+    if group.created_by != current_user.id:
+        abort(403)
+    form = SubjectGroupForm(obj=group)
+    if form.validate_on_submit():
+        group.name = form.name.data
+        group.description = form.description.data
+        db.session.commit()
+        flash(f'Grupo "{group.name}" atualizado!', 'success')
+        return redirect(url_for('teacher.subject_groups'))
+    return render_template('teacher/subject_group_form.html', title='Editar Grupo',
+                           form=form, group=group)
+
+
+@bp.route('/grupos/<int:group_id>/excluir', methods=['POST'])
+@login_required
+@teacher_required
+def delete_subject_group(group_id):
+    group = SubjectGroup.query.get_or_404(group_id)
+    if group.created_by != current_user.id:
+        abort(403)
+    # Detach subjects before deleting the group
+    for s in group.subjects.all():
+        s.group_id = None
+    db.session.delete(group)
+    db.session.commit()
+    flash(f'Grupo "{group.name}" excluído.', 'success')
+    return redirect(url_for('teacher.subject_groups'))
+
+
 # ─── Subjects ─────────────────────────────────────────────────────────────────
 
 @bp.route('/materias')
@@ -201,11 +265,15 @@ def subjects():
 @teacher_required
 def create_subject():
     form = SubjectForm()
+    groups = SubjectGroup.query.filter_by(created_by=current_user.id).order_by(SubjectGroup.name).all()
+    form.group_id.choices = [(0, '— Sem grupo —')] + [(g.id, g.name) for g in groups]
     if form.validate_on_submit():
+        group_id = form.group_id.data if form.group_id.data else None
         subject = Subject(
             name=form.name.data,
             description=form.description.data,
-            created_by=current_user.id
+            created_by=current_user.id,
+            group_id=group_id if group_id else None
         )
         db.session.add(subject)
         db.session.commit()
@@ -222,9 +290,12 @@ def edit_subject(subject_id):
     if subject.created_by != current_user.id:
         abort(403)
     form = SubjectForm(obj=subject)
+    groups = SubjectGroup.query.filter_by(created_by=current_user.id).order_by(SubjectGroup.name).all()
+    form.group_id.choices = [(0, '— Sem grupo —')] + [(g.id, g.name) for g in groups]
     if form.validate_on_submit():
         subject.name = form.name.data
         subject.description = form.description.data
+        subject.group_id = form.group_id.data if form.group_id.data else None
         db.session.commit()
         flash(f'Matéria "{subject.name}" atualizada!', 'success')
         return redirect(url_for('teacher.subjects'))

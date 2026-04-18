@@ -6,7 +6,6 @@ from flask_login import LoginManager
 from flask_migrate import Migrate
 from flask_wtf.csrf import CSRFProtect
 from markupsafe import Markup, escape
-from sqlalchemy import inspect, text
 from config import Config
 
 db = SQLAlchemy()
@@ -14,36 +13,6 @@ login_manager = LoginManager()
 migrate = Migrate()
 csrf = CSRFProtect()
 
-
-def _ensure_legacy_schema_updates(app):
-    """Add new optional question/media columns for older databases without requiring a manual migration."""
-    with app.app_context():
-        inspector = inspect(db.engine)
-        table_names = set(inspector.get_table_names())
-        statements = []
-
-        if 'questions' in table_names:
-            question_columns = {column['name'] for column in inspector.get_columns('questions')}
-            if 'reference_text' not in question_columns:
-                statements.append(
-                    text('ALTER TABLE questions ADD COLUMN reference_text TEXT')
-                )
-            if 'explanation_image_path' not in question_columns:
-                statements.append(
-                    text('ALTER TABLE questions ADD COLUMN explanation_image_path VARCHAR(256)')
-                )
-
-        if 'answer_options' in table_names:
-            option_columns = {column['name'] for column in inspector.get_columns('answer_options')}
-            if 'image_path' not in option_columns:
-                statements.append(
-                    text('ALTER TABLE answer_options ADD COLUMN image_path VARCHAR(256)')
-                )
-
-        if statements:
-            with db.engine.begin() as connection:
-                for statement in statements:
-                    connection.execute(statement)
 
 
 def create_app(config_class=Config):
@@ -95,8 +64,6 @@ def create_app(config_class=Config):
     @app.errorhandler(404)
     def not_found(e):
         return render_template('404.html'), 404
-
-    _ensure_legacy_schema_updates(app)
 
     return app
 

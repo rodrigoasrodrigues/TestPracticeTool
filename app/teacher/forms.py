@@ -18,9 +18,16 @@ def _optional_image_field(label):
     )
 
 
+class SubjectGroupForm(FlaskForm):
+    name = StringField('Nome do Grupo', validators=[DataRequired(), Length(max=128)])
+    description = TextAreaField('Descrição', validators=[Optional()])
+    submit = SubmitField('Salvar')
+
+
 class SubjectForm(FlaskForm):
     name = StringField('Nome da Matéria', validators=[DataRequired(), Length(max=128)])
     description = TextAreaField('Descrição', validators=[Optional()])
+    group_id = SelectField('Grupo de Matérias', coerce=int, validators=[Optional()])
     submit = SubmitField('Salvar')
 
 

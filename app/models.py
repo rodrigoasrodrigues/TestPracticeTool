@@ -49,6 +49,21 @@ def load_user(user_id):
     return db.session.get(User, int(user_id))
 
 
+class SubjectGroup(db.Model):
+    __tablename__ = 'subject_groups'
+
+    id = db.Column(db.Integer, primary_key=True)
+    name = db.Column(db.String(128), nullable=False)
+    description = db.Column(db.Text)
+    created_by = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
+    created_at = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc))
+
+    subjects = db.relationship('Subject', backref='group', lazy='dynamic')
+
+    def __repr__(self):
+        return f'<SubjectGroup {self.name}>'
+
+
 class Subject(db.Model):
     __tablename__ = 'subjects'
 
@@ -57,6 +72,7 @@ class Subject(db.Model):
     description = db.Column(db.Text)
     created_by = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
     created_at = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc))
+    group_id = db.Column(db.Integer, db.ForeignKey('subject_groups.id'), nullable=True)
 
     questions = db.relationship('Question', backref='subject', lazy='dynamic',
                                 cascade='all, delete-orphan')
