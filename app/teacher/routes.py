@@ -805,6 +805,91 @@ def student_attempts(exam_id, student_id):
                            assignment=assignment)
 
 
+@bp.route('/alunos')
+@login_required
+@teacher_required
+def students_overview():
+    """List all students that have been assigned at least one exam by this teacher."""
+    # Get distinct students assigned to exams created by current teacher
+    teacher_exam_ids = [e.id for e in Exam.query.filter_by(created_by=current_user.id).all()]
+    if not teacher_exam_ids:
+        students = []
+    else:
+        student_ids = db.session.query(StudentExam.student_id)\
+            .filter(StudentExam.exam_id.in_(teacher_exam_ids))\
+            .distinct().all()
+        student_ids = [s[0] for s in student_ids]
+        students = User.query.filter(User.id.in_(student_ids))\
+            .order_by(User.username).all()
+    return render_template('teacher/students_overview.html',
+                           title='Visão por Aluno',
+                           students=students)
+
+
+@bp.route('/alunos/<int:student_id>')
+@login_required
+@teacher_required
+def student_report(student_id):
+    """Show per-student overview: exams taken + best scores + most missed questions."""
+    student = User.query.get_or_404(student_id)
+
+    # Only exams created by this teacher assigned to this student
+    teacher_exam_ids = [e.id for e in Exam.query.filter_by(created_by=current_user.id).all()]
+    assignments = StudentExam.query.filter(
+        StudentExam.student_id == student_id,
+        StudentExam.exam_id.in_(teacher_exam_ids)
+    ).all()
+
+    if not assignments:
+        abort(404)
+
+    # Per-exam summary
+    exam_summaries = []
+    for assignment in assignments:
+        completed_attempts = assignment.attempts.filter(
+            ExamAttempt.completed_at.isnot(None)
+        ).all()
+        best = None
+        if completed_attempts:
+            scores = [a.score for a in completed_attempts if a.score is not None]
+            best = max(scores) if scores else None
+        exam_summaries.append({
+            'exam': assignment.exam,
+            'assignment': assignment,
+            'attempt_count': len(completed_attempts),
+            'best_score': best,
+        })
+
+    # Most missed questions across all completed attempts
+    from collections import Counter
+    question_errors = Counter()
+    question_map = {}
+
+    for assignment in assignments:
+        completed_attempts = assignment.attempts.filter(
+            ExamAttempt.completed_at.isnot(None)
+        ).all()
+        for attempt in completed_attempts:
+            for answer in attempt.answers.all():
+                if not answer.is_correct():
+                    eq = answer.exam_question
+                    q = eq.question
+                    question_errors[q.id] += 1
+                    if q.id not in question_map:
+                        question_map[q.id] = q
+
+    most_missed = [
+        {'question': question_map[qid], 'error_count': count}
+        for qid, count in question_errors.most_common(20)
+    ]
+
+    return render_template('teacher/student_report.html',
+                           title=f'Relatório de {student.username}',
+                           student=student,
+                           exam_summaries=exam_summaries,
+                           most_missed=most_missed)
+
+
 @bp.route('/tentativas/<int:attempt_id>/detalhes')
 @login_required
 @teacher_required

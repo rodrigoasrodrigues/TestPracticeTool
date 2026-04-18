@@ -1,0 +1,57 @@
+{% extends "base.html" %}
+{% block title %}{{ title }} - TestPracticeTool{% endblock %}
+
+{% block content %}
+<div class="container">
+    <div class="d-flex align-items-center mb-4">
+        <a href="{{ url_for('teacher.dashboard') }}" class="btn btn-sm btn-outline-secondary me-3">
+            <i class="bi bi-arrow-left"></i>
+        </a>
+        <div>
+            <h1 class="mb-0"><i class="bi bi-people me-2"></i>Visão por Aluno</h1>
+            <small class="text-muted">Alunos com provas atribuídas</small>
+        </div>
+    </div>
+
+    {% if students %}
+    <div class="card shadow-sm">
+        <div class="table-responsive">
+            <table class="table table-hover align-middle mb-0">
+                <thead class="table-light">
+                    <tr>
+                        <th>Aluno</th>
+                        <th>E-mail</th>
+                        <th>Ações</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for student in students %}
+                    <tr>
+                        <td>
+                            <i class="bi bi-person-circle me-1 text-muted"></i>
+                            {{ student.username }}
+                        </td>
+                        <td class="text-muted">{{ student.email }}</td>
+                        <td>
+                            <a href="{{ url_for('teacher.student_report', student_id=student.id) }}"
+                               class="btn btn-sm btn-outline-primary">
+                                <i class="bi bi-bar-chart-line me-1"></i>Ver Relatório
+                            </a>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+    {% else %}
+    <div class="text-center py-5 text-muted">
+        <i class="bi bi-people display-3 d-block mb-3"></i>
+        <p>Nenhum aluno com provas atribuídas ainda.</p>
+        <a href="{{ url_for('teacher.exams') }}" class="btn btn-primary mt-2">
+            <i class="bi bi-file-earmark-text me-1"></i>Gerenciar Provas
+        </a>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}

@@ -1,0 +1,104 @@
+{% extends "base.html" %}
+{% block title %}{{ title }} - TestPracticeTool{% endblock %}
+
+{% block content %}
+<div class="container">
+    <div class="d-flex align-items-center mb-4">
+        <a href="{{ url_for('teacher.students_overview') }}" class="btn btn-sm btn-outline-secondary me-3">
+            <i class="bi bi-arrow-left"></i>
+        </a>
+        <div>
+            <h1 class="mb-0"><i class="bi bi-person-lines-fill me-2"></i>{{ student.username }}</h1>
+            <small class="text-muted">Relatório de desempenho</small>
+        </div>
+    </div>
+
+    {# ── Provas realizadas ─────────────────────────────────────────────── #}
+    <h5 class="mb-3"><i class="bi bi-file-earmark-bar-graph me-1"></i>Provas atribuídas</h5>
+    <div class="card shadow-sm mb-5">
+        <div class="table-responsive">
+            <table class="table table-hover align-middle mb-0">
+                <thead class="table-light">
+                    <tr>
+                        <th>Prova</th>
+                        <th class="text-center">Tentativas Realizadas</th>
+                        <th class="text-center">Máx. Tentativas</th>
+                        <th class="text-center">Melhor Nota</th>
+                        <th>Ações</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for s in exam_summaries %}
+                    <tr>
+                        <td>{{ s.exam.title }}</td>
+                        <td class="text-center">{{ s.attempt_count }}</td>
+                        <td class="text-center">{{ s.assignment.max_attempts }}</td>
+                        <td class="text-center">
+                            {% if s.best_score is not none %}
+                                <span class="badge fs-6 {{ 'bg-success' if s.best_score >= 60 else 'bg-danger' }}">
+                                    {{ s.best_score }}%
+                                </span>
+                            {% else %}
+                                <span class="text-muted">—</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            <a href="{{ url_for('teacher.student_attempts', exam_id=s.exam.id, student_id=student.id) }}"
+                               class="btn btn-sm btn-outline-secondary">
+                                <i class="bi bi-list-check me-1"></i>Ver Tentativas
+                            </a>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    {# ── Questões mais erradas ─────────────────────────────────────────── #}
+    <h5 class="mb-3"><i class="bi bi-exclamation-triangle me-1 text-danger"></i>Questões mais erradas (todas as tentativas)</h5>
+    {% if most_missed %}
+    <div class="card shadow-sm">
+        <div class="table-responsive">
+            <table class="table table-hover align-middle mb-0">
+                <thead class="table-light">
+                    <tr>
+                        <th style="width:55%">Questão</th>
+                        <th style="width:20%">Matéria</th>
+                        <th class="text-center" style="width:15%">Erros</th>
+                        <th style="width:10%"></th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for item in most_missed %}
+                    <tr>
+                        <td>
+                            <span class="text-truncate d-inline-block" style="max-width:420px"
+                                  title="{{ item.question.text }}">
+                                {{ item.question.text | truncate(120) }}
+                            </span>
+                        </td>
+                        <td class="text-muted small">{{ item.question.subject.name }}</td>
+                        <td class="text-center">
+                            <span class="badge bg-danger rounded-pill">{{ item.error_count }}</span>
+                        </td>
+                        <td>
+                            <a href="{{ url_for('teacher.edit_question', question_id=item.question.id) }}"
+                               class="btn btn-sm btn-outline-secondary" title="Ver questão">
+                                <i class="bi bi-eye"></i>
+                            </a>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+    {% else %}
+    <div class="text-center py-4 text-muted">
+        <i class="bi bi-check-circle display-4 d-block mb-2 text-success"></i>
+        <p>Nenhuma tentativa concluída ainda — sem dados de erros.</p>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}
