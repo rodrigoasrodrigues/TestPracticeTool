@@ -18,7 +18,7 @@ instance/
 .webassets-cache
 
 # Flask-Migrate
-migrations/
+# migrations/ — managed by Flask-Migrate, must be version-controlled
 
 # Uploads (user-generated content)
 app/static/uploads/*
