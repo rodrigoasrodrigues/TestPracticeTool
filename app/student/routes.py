@@ -23,6 +23,14 @@ def student_required(f):
 @student_required
 def dashboard():
     assignments = StudentExam.query.filter_by(student_id=current_user.id).all()
+
+    def sort_key(a):
+        best = a.best_score()
+        if best is None:
+            return (0, 0)   # not attempted yet → first
+        return (1, best)    # attempted → sorted by score ascending (highest last)
+
+    assignments = sorted(assignments, key=sort_key)
     return render_template('student/dashboard.html', title='Minhas Provas',
                            assignments=assignments)
 
