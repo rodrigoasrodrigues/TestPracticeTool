@@ -31,7 +31,8 @@
                         <div class="mb-3">
                             {{ form.max_attempts.label(class="form-label fw-semibold") }}
                             {{ form.max_attempts(class="form-control" + (" is-invalid" if form.max_attempts.errors else ""),
-                               min=1) }}
+                               min=0) }}
+                            <div class="form-text">Use 0 ou deixe vazio para tentativas ilimitadas.</div>
                             {% for error in form.max_attempts.errors %}
                             <div class="invalid-feedback">{{ error }}</div>
                             {% endfor %}

@@ -181,7 +181,7 @@ class StudentExam(db.Model):
     exam_id = db.Column(db.Integer, db.ForeignKey('exams.id'), nullable=False)
     student_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
     assigned_by = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
-    max_attempts = db.Column(db.Integer, default=1, nullable=False)
+    max_attempts = db.Column(db.Integer, default=1, nullable=True)  # None means unlimited
     time_limit_minutes = db.Column(db.Integer)  # None means no time limit
     available_from = db.Column(db.DateTime)
     available_until = db.Column(db.DateTime)
@@ -200,9 +200,10 @@ class StudentExam(db.Model):
             return False, 'A prova ainda não está disponível.'
         if self.available_until and now > self.available_until.replace(tzinfo=timezone.utc):
             return False, 'O prazo para realizar a prova expirou.'
-        completed = self.attempts.filter(ExamAttempt.completed_at.isnot(None)).count()
-        if completed >= self.max_attempts:
-            return False, f'Você atingiu o número máximo de tentativas ({self.max_attempts}).'
+        if self.max_attempts is not None:
+            completed = self.attempts.filter(ExamAttempt.completed_at.isnot(None)).count()
+            if completed >= self.max_attempts:
+                return False, f'Você atingiu o número máximo de tentativas ({self.max_attempts}).'
         return True, ''
 
     def best_score(self):

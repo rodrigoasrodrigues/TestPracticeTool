@@ -873,11 +873,15 @@ def assign_exam(exam_id):
         if time_limit == 0:
             time_limit = None
 
+        max_att = form.max_attempts.data
+        if max_att == 0 or not max_att:
+            max_att = None
+
         assignment = StudentExam(
             exam_id=exam.id,
             student_id=form.student_id.data,
             assigned_by=current_user.id,
-            max_attempts=form.max_attempts.data,
+            max_attempts=max_att,
             time_limit_minutes=time_limit,
             available_from=form.available_from.data,
             available_until=form.available_until.data
@@ -1021,9 +1025,38 @@ def add_attempts(exam_id, student_id):
     except (ValueError, TypeError):
         flash('Número de tentativas inválido.', 'danger')
         return redirect(url_for('teacher.student_attempts', exam_id=exam_id, student_id=student_id))
-    assignment.max_attempts += extra
-    db.session.commit()
-    flash(f'{extra} tentativa(s) adicionada(s). Novo máximo: {assignment.max_attempts}.', 'success')
+    if assignment.max_attempts is None:
+        flash('O aluno já tem tentativas ilimitadas.', 'warning')
+    else:
+        assignment.max_attempts += extra
+        db.session.commit()
+        flash(f'{extra} tentativa(s) adicionada(s). Novo máximo: {assignment.max_attempts}.', 'success')
+    return redirect(url_for('teacher.student_attempts', exam_id=exam_id, student_id=student_id))
+
+
+@bp.route('/provas/<int:exam_id>/alunos/<int:student_id>/tentativas/definir', methods=['POST'])
+@login_required
+@teacher_required
+def set_attempts(exam_id, student_id):
+    exam = Exam.query.get_or_404(exam_id)
+    if exam.created_by != current_user.id:
+        abort(403)
+    assignment = StudentExam.query.filter_by(exam_id=exam_id, student_id=student_id).first_or_404()
+    try:
+        value = request.form.get('max_attempts', '').strip()
+        if value == '' or int(value) == 0:
+            assignment.max_attempts = None
+            db.session.commit()
+            flash('Número de tentativas definido como ilimitado.', 'success')
+        else:
+            val = int(value)
+            if val < 1:
+                raise ValueError
+            assignment.max_attempts = val
+            db.session.commit()
+            flash(f'Número máximo de tentativas definido para {val}.', 'success')
+    except (ValueError, TypeError):
+        flash('Número de tentativas inválido.', 'danger')
     return redirect(url_for('teacher.student_attempts', exam_id=exam_id, student_id=student_id))
 
 

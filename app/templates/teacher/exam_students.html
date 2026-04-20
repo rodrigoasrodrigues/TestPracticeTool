@@ -38,7 +38,7 @@
                             <strong>{{ assignment.student.username }}</strong>
                             <small class="text-muted d-block">{{ assignment.student.email }}</small>
                         </td>
-                        <td>{{ assignment.max_attempts }}</td>
+                        <td>{% if assignment.max_attempts is none %}∞{% else %}{{ assignment.max_attempts }}{% endif %}</td>
                         <td>
                             {{ assignment.attempt_count() }}
                         </td>

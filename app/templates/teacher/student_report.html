@@ -32,7 +32,7 @@
                     <tr>
                         <td>{{ s.exam.title }}</td>
                         <td class="text-center">{{ s.attempt_count }}</td>
-                        <td class="text-center">{{ s.assignment.max_attempts }}</td>
+                        <td class="text-center">{% if s.assignment.max_attempts is none %}∞{% else %}{{ s.assignment.max_attempts }}{% endif %}</td>
                         <td class="text-center">
                             {% if s.best_score is not none %}
                                 <span class="badge fs-6 {{ 'bg-success' if s.best_score >= 60 else 'bg-danger' }}">

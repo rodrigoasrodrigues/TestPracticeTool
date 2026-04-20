@@ -80,8 +80,8 @@ class ExamForm(FlaskForm):
 
 class AssignExamForm(FlaskForm):
     student_id = SelectField('Aluno', coerce=int, validators=[DataRequired()])
-    max_attempts = IntegerField('Número Máximo de Tentativas',
-                                validators=[DataRequired(), NumberRange(min=1)], default=1)
+    max_attempts = IntegerField('Número Máximo de Tentativas (0 = ilimitado)',
+                                validators=[Optional(), NumberRange(min=0)], default=1)
     time_limit_minutes = IntegerField('Tempo Limite (minutos, 0 = sem limite)',
                                       validators=[Optional(), NumberRange(min=0)], default=0)
     available_from = DateTimeLocalField('Disponível a partir de',

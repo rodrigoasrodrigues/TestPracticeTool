@@ -33,14 +33,24 @@
             <div class="card border-0 bg-light">
                 <div class="card-body">
                     <div class="text-muted small">Tentativas Realizadas</div>
-                    <div class="fs-2 fw-bold">{{ attempts|length }} / {{ assignment.max_attempts }}</div>
+                    <div class="fs-2 fw-bold">{{ attempts|length }} / {% if assignment.max_attempts is none %}∞{% else %}{{ assignment.max_attempts }}{% endif %}</div>
                 </div>
             </div>
         </div>
         <div class="col-md-4">
             <div class="card border-0 bg-light">
-                <div class="card-body">
-                    <div class="text-muted small mb-2">Adicionar Tentativas</div>
+                <div class="card-body">                    <div class="text-muted small mb-2">Definir Tentativas</div>
+                    <form method="POST"
+                          action="{{ url_for('teacher.set_attempts', exam_id=exam.id, student_id=student.id) }}"
+                          class="d-flex gap-2 align-items-center mb-2">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                        <input type="number" name="max_attempts" placeholder="0=∞"
+                               value="{% if assignment.max_attempts is not none %}{{ assignment.max_attempts }}{% endif %}"
+                               min="0" class="form-control form-control-sm" style="width:90px">
+                        <button type="submit" class="btn btn-sm btn-outline-success">
+                            <i class="bi bi-check-lg me-1"></i>Definir
+                        </button>
+                    </form>                    <div class="text-muted small mb-2">Adicionar Tentativas</div>
                     <form method="POST"
                           action="{{ url_for('teacher.add_attempts', exam_id=exam.id, student_id=student.id) }}"
                           class="d-flex gap-2 align-items-center">
