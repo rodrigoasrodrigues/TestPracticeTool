@@ -693,6 +693,8 @@ def create_exam():
     form = ExamForm()
     subjects_list = Subject.query.filter_by(created_by=current_user.id).order_by(Subject.name).all()
 
+    groups_list = SubjectGroup.query.filter_by(created_by=current_user.id).order_by(SubjectGroup.name).all()
+
     if request.method == 'POST' and form.validate_on_submit():
         # Get subject/count pairs from the form
         subject_ids = request.form.getlist('subject_ids[]')
@@ -708,25 +710,55 @@ def create_exam():
             except (ValueError, TypeError):
                 pass
 
-        if not selections:
-            flash('Adicione pelo menos uma matéria com questões para a prova.', 'danger')
-            return render_template('teacher/exam_form.html', title='Nova Prova',
-                                   form=form, subjects=subjects_list)
+        # Get group/count pairs
+        group_ids = request.form.getlist('group_ids[]')
+        group_num_questions_list = request.form.getlist('group_num_questions[]')
+        for gid, nq in zip(group_ids, group_num_questions_list):
+            try:
+                gid = int(gid)
+                nq = int(nq)
+                if gid > 0 and nq > 0:
+                    group = db.session.get(SubjectGroup, gid)
+                    if not group or group.created_by != current_user.id:
+                        flash('Grupo inválido selecionado.', 'danger')
+                        return render_template('teacher/exam_form.html', title='Nova Prova',
+                                               form=form, subjects=subjects_list, groups=groups_list)
+                    group_subject_ids = [s.id for s in group.subjects.all()]
+                    available = Question.query.filter(
+                        Question.subject_id.in_(group_subject_ids),
+                        Question.created_by == current_user.id,
+                    ).count() if group_subject_ids else 0
+                    if available < nq:
+                        flash(f'O grupo "{group.name}" tem apenas {available} questões disponíveis, '
+                              f'mas você solicitou {nq}.', 'danger')
+                        return render_template('teacher/exam_form.html', title='Nova Prova',
+                                               form=form, subjects=subjects_list, groups=groups_list)
+                    # Add (special key None, gid) or handle separately
+                    selections.append(('group', gid, nq))
+            except (ValueError, TypeError):
+                pass
 
-        # Validate enough questions exist
-        for sid, nq in selections:
-            subject = db.session.get(Subject, sid)
-            if not subject or subject.created_by != current_user.id:
-                flash('Matéria inválida selecionada.', 'danger')
-                return render_template('teacher/exam_form.html', title='Nova Prova',
-                                       form=form, subjects=subjects_list)
-            available = Question.query.filter_by(subject_id=sid,
-                                                 created_by=current_user.id).count()
-            if available < nq:
-                flash(f'A matéria "{subject.name}" tem apenas {available} questões disponíveis, '
-                      f'mas você solicitou {nq}.', 'danger')
-                return render_template('teacher/exam_form.html', title='Nova Prova',
-                                       form=form, subjects=subjects_list)
+        if not selections:
+            flash('Adicione pelo menos uma matéria ou grupo com questões para a prova.', 'danger')
+            return render_template('teacher/exam_form.html', title='Nova Prova',
+                                   form=form, subjects=subjects_list, groups=groups_list)
+
+        # Validate subject selections
+        for item in selections:
+            if len(item) == 2:
+                sid, nq = item
+                subject = db.session.get(Subject, sid)
+                if not subject or subject.created_by != current_user.id:
+                    flash('Matéria inválida selecionada.', 'danger')
+                    return render_template('teacher/exam_form.html', title='Nova Prova',
+                                           form=form, subjects=subjects_list, groups=groups_list)
+                available = Question.query.filter_by(subject_id=sid,
+                                                     created_by=current_user.id).count()
+                if available < nq:
+                    flash(f'A matéria "{subject.name}" tem apenas {available} questões disponíveis, '
+                          f'mas você solicitou {nq}.', 'danger')
+                    return render_template('teacher/exam_form.html', title='Nova Prova',
+                                           form=form, subjects=subjects_list, groups=groups_list)
 
         exam = Exam(
             title=form.title.data,
@@ -737,10 +769,23 @@ def create_exam():
         db.session.flush()
 
         order_num = 1
-        for sid, nq in selections:
-            all_questions = Question.query.filter_by(subject_id=sid,
-                                                     created_by=current_user.id).all()
-            selected_questions = random.sample(all_questions, nq)
+        for item in selections:
+            if len(item) == 2:
+                # Subject-based selection
+                sid, nq = item
+                all_questions = Question.query.filter_by(subject_id=sid,
+                                                         created_by=current_user.id).all()
+                selected_questions = random.sample(all_questions, nq)
+            else:
+                # Group-based selection
+                _, gid, nq = item
+                group = db.session.get(SubjectGroup, gid)
+                group_subject_ids = [s.id for s in group.subjects.all()]
+                all_questions = Question.query.filter(
+                    Question.subject_id.in_(group_subject_ids),
+                    Question.created_by == current_user.id,
+                ).all() if group_subject_ids else []
+                selected_questions = random.sample(all_questions, nq)
 
             for q in selected_questions:
                 eq = ExamQuestion(
@@ -769,7 +814,7 @@ def create_exam():
         return redirect(url_for('teacher.exams'))
 
     return render_template('teacher/exam_form.html', title='Nova Prova',
-                           form=form, subjects=subjects_list)
+                           form=form, subjects=subjects_list, groups=groups_list)
 
 
 @bp.route('/provas/<int:exam_id>')
@@ -961,6 +1006,84 @@ def student_report(student_id):
                            most_missed=most_missed)
 
 
+@bp.route('/provas/<int:exam_id>/alunos/<int:student_id>/tentativas/adicionar', methods=['POST'])
+@login_required
+@teacher_required
+def add_attempts(exam_id, student_id):
+    exam = Exam.query.get_or_404(exam_id)
+    if exam.created_by != current_user.id:
+        abort(403)
+    assignment = StudentExam.query.filter_by(exam_id=exam_id, student_id=student_id).first_or_404()
+    try:
+        extra = int(request.form.get('extra_attempts', 1))
+        if extra < 1:
+            raise ValueError
+    except (ValueError, TypeError):
+        flash('Número de tentativas inválido.', 'danger')
+        return redirect(url_for('teacher.student_attempts', exam_id=exam_id, student_id=student_id))
+    assignment.max_attempts += extra
+    db.session.commit()
+    flash(f'{extra} tentativa(s) adicionada(s). Novo máximo: {assignment.max_attempts}.', 'success')
+    return redirect(url_for('teacher.student_attempts', exam_id=exam_id, student_id=student_id))
+
+
+@bp.route('/provas/criar-de-questoes', methods=['POST'])
+@login_required
+@teacher_required
+def create_exam_from_questions():
+    """Create an exam from a specific list of question IDs."""
+    title = request.form.get('title', '').strip()
+    question_ids_raw = request.form.getlist('question_ids[]')
+    redirect_to = request.form.get('redirect_to', '')
+
+    if not title:
+        flash('O título da prova é obrigatório.', 'danger')
+        return redirect(redirect_to or url_for('teacher.exams'))
+
+    try:
+        question_ids = [int(qid) for qid in question_ids_raw if str(qid).isdigit()]
+    except (ValueError, TypeError):
+        question_ids = []
+
+    if not question_ids:
+        flash('Selecione ao menos uma questão para criar a prova.', 'danger')
+        return redirect(redirect_to or url_for('teacher.exams'))
+
+    questions_list = Question.query.filter(
+        Question.id.in_(question_ids),
+        Question.created_by == current_user.id,
+    ).all()
+
+    if not questions_list:
+        flash('Nenhuma questão válida encontrada.', 'danger')
+        return redirect(redirect_to or url_for('teacher.exams'))
+
+    exam = Exam(
+        title=title,
+        created_by=current_user.id,
+    )
+    db.session.add(exam)
+    db.session.flush()
+
+    for order_num, q in enumerate(questions_list, start=1):
+        eq = ExamQuestion(exam_id=exam.id, question_id=q.id, order_number=order_num)
+        db.session.add(eq)
+        db.session.flush()
+
+        options = q.answer_options.all()
+        random.shuffle(options)
+        for display_order, opt in enumerate(options, start=1):
+            db.session.add(ExamQuestionOption(
+                exam_question_id=eq.id,
+                answer_option_id=opt.id,
+                display_order=display_order,
+            ))
+
+    db.session.commit()
+    flash(f'Prova "{exam.title}" criada com {len(questions_list)} questão(ões)!', 'success')
+    return redirect(url_for('teacher.view_exam', exam_id=exam.id))
+
+
 @bp.route('/tentativas/<int:attempt_id>/detalhes')
 @login_required
 @teacher_required
@@ -973,10 +1096,15 @@ def attempt_details(attempt_id):
     answers = attempt.answers.all()
     eq_map = {a.exam_question_id: a for a in answers}
     questions_list = exam.exam_questions.order_by(ExamQuestion.order_number).all()
+    wrong_question_ids = [
+        eq.question_id for eq in questions_list
+        if eq.id in eq_map and not eq_map[eq.id].is_correct()
+    ]
     return render_template('teacher/attempt_details.html',
                            title='Detalhes da Tentativa',
                            attempt=attempt, exam=exam,
-                           questions=questions_list, eq_map=eq_map)
+                           questions=questions_list, eq_map=eq_map,
+                           wrong_question_ids=wrong_question_ids)
 
 
 # ─── YAML Import ──────────────────────────────────────────────────────────────

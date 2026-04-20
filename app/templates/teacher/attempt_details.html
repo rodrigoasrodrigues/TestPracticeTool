@@ -18,7 +18,52 @@
                 </strong>
             </p>
         </div>
+        {% if wrong_question_ids %}
+        <div class="ms-auto">
+            <button class="btn btn-outline-warning btn-sm" type="button"
+                    data-bs-toggle="modal" data-bs-target="#createExamModal">
+                <i class="bi bi-file-earmark-plus me-1"></i>Criar Prova com Erros
+            </button>
+        </div>
+        {% endif %}
     </div>
+
+    {% if wrong_question_ids %}
+    <div class="modal fade" id="createExamModal" tabindex="-1">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Criar Prova com Questões Erradas</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <form method="POST" action="{{ url_for('teacher.create_exam_from_questions') }}">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                    {% for qid in wrong_question_ids %}
+                    <input type="hidden" name="question_ids[]" value="{{ qid }}">
+                    {% endfor %}
+                    <input type="hidden" name="redirect_to"
+                           value="{{ url_for('teacher.attempt_details', attempt_id=attempt.id) }}">
+                    <div class="modal-body">
+                        <p class="text-muted">
+                            Serão incluídas <strong>{{ wrong_question_ids|length }}</strong> questão(ões) errada(s).
+                        </p>
+                        <div class="mb-3">
+                            <label class="form-label fw-semibold">Título da Prova</label>
+                            <input type="text" name="title" class="form-control" required
+                                   value="Revisão - {{ exam.title }}">
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                        <button type="submit" class="btn btn-warning">
+                            <i class="bi bi-file-earmark-plus me-1"></i>Criar Prova
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+    {% endif %}
 
     {% for eq in questions %}
     {% set answer = eq_map.get(eq.id) %}

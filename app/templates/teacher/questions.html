@@ -68,6 +68,49 @@
         </div>
     </form>
 
+    <div id="createExamPanel" class="card shadow-sm border-warning border-0 mb-3 d-none">
+        <div class="card-body d-flex flex-column flex-lg-row gap-3 align-items-lg-center justify-content-between">
+            <div>
+                <div class="fw-semibold text-warning-emphasis">Criar Prova com Selecionadas</div>
+                <div class="text-muted small">Crie uma prova contendo apenas as questões selecionadas.</div>
+            </div>
+            <button type="button" class="btn btn-warning btn-sm" id="createExamFromSelectedBtn"
+                    data-bs-toggle="modal" data-bs-target="#createExamFromSelectionModal" disabled>
+                <i class="bi bi-file-earmark-plus me-1"></i>Criar Prova
+            </button>
+        </div>
+    </div>
+
+    <div class="modal fade" id="createExamFromSelectionModal" tabindex="-1">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Criar Prova com Questões Selecionadas</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <form method="POST" action="{{ url_for('teacher.create_exam_from_questions') }}"
+                      id="createExamFromSelectionForm">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                    <div id="selectedQuestionIdsContainer"></div>
+                    <div class="modal-body">
+                        <p class="text-muted" id="createExamSelectedCount"></p>
+                        <div class="mb-3">
+                            <label class="form-label fw-semibold">Título da Prova</label>
+                            <input type="text" name="title" class="form-control" required
+                                   placeholder="Ex: Simulado de Revisão">
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                        <button type="submit" class="btn btn-warning">
+                            <i class="bi bi-file-earmark-plus me-1"></i>Criar Prova
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
     <div class="card shadow-sm">
         <div class="table-responsive">
             <table class="table table-hover align-middle mb-0">
@@ -167,16 +210,36 @@ document.addEventListener('DOMContentLoaded', function () {
     const moveForm = document.getElementById('moveQuestionsForm');
     const moveButton = document.getElementById('moveSelectedBtn');
     const countLabel = document.getElementById('selectedQuestionsCount');
+    const createExamPanel = document.getElementById('createExamPanel');
+    const createExamBtn = document.getElementById('createExamFromSelectedBtn');
+    const selectedIdsContainer = document.getElementById('selectedQuestionIdsContainer');
+    const createExamCountLabel = document.getElementById('createExamSelectedCount');
 
-    if (!checkboxes.length || !moveForm || !moveButton || !countLabel) {
-        return;
-    }
+    if (!checkboxes.length) return;
 
     function updateSelectionState() {
-        const selectedCount = checkboxes.filter((checkbox) => checkbox.checked).length;
-        moveButton.disabled = selectedCount === 0;
-        countLabel.textContent = `${selectedCount} selecionada(s)`;
-        moveForm.classList.toggle('d-none', selectedCount === 0);
+        const selectedCheckboxes = checkboxes.filter((cb) => cb.checked);
+        const selectedCount = selectedCheckboxes.length;
+
+        if (moveButton) moveButton.disabled = selectedCount === 0;
+        if (countLabel) countLabel.textContent = `${selectedCount} selecionada(s)`;
+        if (moveForm) moveForm.classList.toggle('d-none', selectedCount === 0);
+        if (createExamPanel) createExamPanel.classList.toggle('d-none', selectedCount === 0);
+        if (createExamBtn) createExamBtn.disabled = selectedCount === 0;
+
+        if (createExamCountLabel) {
+            createExamCountLabel.textContent = `Serão incluídas ${selectedCount} questão(ões).`;
+        }
+        if (selectedIdsContainer) {
+            selectedIdsContainer.innerHTML = '';
+            selectedCheckboxes.forEach((cb) => {
+                const inp = document.createElement('input');
+                inp.type = 'hidden';
+                inp.name = 'question_ids[]';
+                inp.value = cb.value;
+                selectedIdsContainer.appendChild(inp);
+            });
+        }
 
         if (selectAll) {
             selectAll.checked = selectedCount > 0 && selectedCount === checkboxes.length;
@@ -186,17 +249,12 @@ document.addEventListener('DOMContentLoaded', function () {
 
     if (selectAll) {
         selectAll.addEventListener('change', function () {
-            checkboxes.forEach((checkbox) => {
-                checkbox.checked = selectAll.checked;
-            });
+            checkboxes.forEach((cb) => { cb.checked = selectAll.checked; });
             updateSelectionState();
         });
     }
 
-    checkboxes.forEach((checkbox) => {
-        checkbox.addEventListener('change', updateSelectionState);
-    });
-
+    checkboxes.forEach((cb) => cb.addEventListener('change', updateSelectionState));
     updateSelectionState();
 });
 </script>

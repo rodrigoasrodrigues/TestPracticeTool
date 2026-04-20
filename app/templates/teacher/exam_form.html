@@ -46,9 +46,26 @@
                             <!-- Subject rows will be added here -->
                         </div>
 
+                        {% if groups %}
+                        <hr>
+                        <div class="d-flex justify-content-between align-items-center mb-3">
+                            <h6 class="fw-bold mb-0">
+                                <i class="bi bi-collection me-1"></i>Grupos de Matérias
+                            </h6>
+                            <button type="button" class="btn btn-sm btn-outline-secondary" id="addGroupBtn">
+                                <i class="bi bi-plus-lg me-1"></i>Adicionar Grupo
+                            </button>
+                        </div>
+                        <p class="text-muted small">As questões serão sorteadas de todas as matérias do grupo.</p>
+
+                        <div id="groupRows">
+                            <!-- Group rows will be added here -->
+                        </div>
+                        {% endif %}
+
                         <div id="noSubjectWarning" class="alert alert-warning">
                             <i class="bi bi-exclamation-triangle me-1"></i>
-                            Adicione pelo menos uma matéria para criar a prova.
+                            Adicione pelo menos uma matéria ou grupo para criar a prova.
                         </div>
 
                         <div class="d-flex gap-2 mt-4">
@@ -92,16 +109,49 @@
         </div>
     </div>
 </template>
+
+{% if groups %}
+<!-- Group row template -->
+<template id="groupRowTemplate">
+    <div class="group-row border rounded p-3 mb-2 bg-light border-secondary">
+        <div class="row g-2 align-items-end">
+            <div class="col-md-7">
+                <label class="form-label small fw-semibold">Grupo de Matérias</label>
+                <select class="form-select form-select-sm" name="group_ids[]">
+                    <option value="">— Selecione —</option>
+                    {% for group in groups %}
+                    <option value="{{ group.id }}">{{ group.name }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="col-md-3">
+                <label class="form-label small fw-semibold">Nº Questões</label>
+                <input type="number" class="form-control form-control-sm" name="group_num_questions[]"
+                       min="1" value="1">
+            </div>
+            <div class="col-md-2">
+                <button type="button" class="btn btn-sm btn-outline-danger w-100 remove-group-row-btn">
+                    <i class="bi bi-trash"></i>
+                </button>
+            </div>
+        </div>
+    </div>
+</template>
+{% endif %}
 {% endblock %}
 
 {% block extra_js %}
 <script>
 const template = document.getElementById('subjectRowTemplate');
 const container = document.getElementById('subjectRows');
+const groupTemplate = document.getElementById('groupRowTemplate');
+const groupContainer = document.getElementById('groupRows');
 const warning = document.getElementById('noSubjectWarning');
 
 function updateWarning() {
-    warning.style.display = container.children.length === 0 ? 'block' : 'none';
+    const hasRows = (container ? container.children.length : 0) +
+                    (groupContainer ? groupContainer.children.length : 0);
+    warning.style.display = hasRows === 0 ? 'block' : 'none';
 }
 
 document.getElementById('addSubjectBtn').addEventListener('click', function() {
@@ -113,6 +163,18 @@ document.getElementById('addSubjectBtn').addEventListener('click', function() {
     container.appendChild(clone);
     updateWarning();
 });
+
+if (groupTemplate && groupContainer) {
+    document.getElementById('addGroupBtn').addEventListener('click', function() {
+        const clone = groupTemplate.content.cloneNode(true);
+        clone.querySelector('.remove-group-row-btn').addEventListener('click', function() {
+            this.closest('.group-row').remove();
+            updateWarning();
+        });
+        groupContainer.appendChild(clone);
+        updateWarning();
+    });
+}
 
 updateWarning();
 </script>

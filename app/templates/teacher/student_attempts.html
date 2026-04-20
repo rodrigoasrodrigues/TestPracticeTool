@@ -37,6 +37,23 @@
                 </div>
             </div>
         </div>
+        <div class="col-md-4">
+            <div class="card border-0 bg-light">
+                <div class="card-body">
+                    <div class="text-muted small mb-2">Adicionar Tentativas</div>
+                    <form method="POST"
+                          action="{{ url_for('teacher.add_attempts', exam_id=exam.id, student_id=student.id) }}"
+                          class="d-flex gap-2 align-items-center">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                        <input type="number" name="extra_attempts" value="1" min="1"
+                               class="form-control form-control-sm" style="width:80px">
+                        <button type="submit" class="btn btn-sm btn-outline-primary">
+                            <i class="bi bi-plus-lg me-1"></i>Adicionar
+                        </button>
+                    </form>
+                </div>
+            </div>
+        </div>
     </div>
 
     {% if attempts %}

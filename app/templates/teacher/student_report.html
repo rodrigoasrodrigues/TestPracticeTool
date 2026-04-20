@@ -56,7 +56,51 @@
     </div>
 
     {# ── Questões mais erradas ─────────────────────────────────────────── #}
-    <h5 class="mb-3"><i class="bi bi-exclamation-triangle me-1 text-danger"></i>Questões mais erradas (todas as tentativas)</h5>
+    <div class="d-flex justify-content-between align-items-center mb-3">
+        <h5 class="mb-0"><i class="bi bi-exclamation-triangle me-1 text-danger"></i>Questões mais erradas (todas as tentativas)</h5>
+        {% if most_missed %}
+        <button class="btn btn-sm btn-outline-warning" type="button"
+                data-bs-toggle="modal" data-bs-target="#createExamFromReportModal">
+            <i class="bi bi-file-earmark-plus me-1"></i>Criar Prova com Todas as Erradas
+        </button>
+        {% endif %}
+    </div>
+    {% if most_missed %}
+    <div class="modal fade" id="createExamFromReportModal" tabindex="-1">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Criar Prova com Questões Erradas</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <form method="POST" action="{{ url_for('teacher.create_exam_from_questions') }}">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                    {% for item in most_missed %}
+                    <input type="hidden" name="question_ids[]" value="{{ item.question.id }}">
+                    {% endfor %}
+                    <input type="hidden" name="redirect_to"
+                           value="{{ url_for('teacher.student_report', student_id=student.id) }}">
+                    <div class="modal-body">
+                        <p class="text-muted">
+                            Serão incluídas <strong>{{ most_missed|length }}</strong> questão(ões) mais erradas.
+                        </p>
+                        <div class="mb-3">
+                            <label class="form-label fw-semibold">Título da Prova</label>
+                            <input type="text" name="title" class="form-control" required
+                                   value="Revisão Erros - {{ student.username }}">
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                        <button type="submit" class="btn btn-warning">
+                            <i class="bi bi-file-earmark-plus me-1"></i>Criar Prova
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+    {% endif %}
     {% if most_missed %}
     <div class="card shadow-sm">
         <div class="table-responsive">
