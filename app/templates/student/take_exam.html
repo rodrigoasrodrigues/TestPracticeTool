@@ -57,7 +57,7 @@
         <div class="card shadow-sm mb-4 question-card" id="q{{ eq.id }}">
             <div class="card-header bg-light d-flex justify-content-between">
                 <span class="fw-semibold">Questão {{ loop.index }} de {{ questions|length }}</span>
-                <span class="badge bg-primary-subtle text-primary">
+                <span class="badge bg-primary-subtle text-primary d-none d-sm-inline-flex">
                     <i class="bi bi-collection me-1"></i>
                     Banco: {{ eq.question.subject.name }}
                 </span>
