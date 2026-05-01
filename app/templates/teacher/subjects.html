@@ -8,9 +8,14 @@
             <i class="bi bi-book text-primary fs-3 me-2"></i>
             <h1 class="mb-0">Matérias</h1>
         </div>
-        <a href="{{ url_for('teacher.create_subject') }}" class="btn btn-primary">
-            <i class="bi bi-plus-lg me-1"></i>Nova Matéria
-        </a>
+        <div class="d-flex gap-2">
+            <a href="{{ url_for('teacher.subject_groups') }}" class="btn btn-outline-secondary">
+                <i class="bi bi-collection me-1"></i>Grupos
+            </a>
+            <a href="{{ url_for('teacher.create_subject') }}" class="btn btn-primary">
+                <i class="bi bi-plus-lg me-1"></i>Nova Matéria
+            </a>
+        </div>
     </div>
 
     {% if subjects %}
@@ -23,6 +28,15 @@
                     {% if subject.description %}
                     <p class="card-text text-muted small">{{ subject.description }}</p>
                     {% endif %}
+                    <div class="mb-2 small">
+                        {% if subject.group %}
+                        <span class="badge text-bg-secondary">
+                            <i class="bi bi-collection me-1"></i>{{ subject.group.name }}
+                        </span>
+                        {% else %}
+                        <span class="text-muted">Sem grupo</span>
+                        {% endif %}
+                    </div>
                     <div class="d-flex align-items-center text-muted small">
                         <i class="bi bi-question-circle me-1"></i>
                         {{ subject.questions.count() }} questão(ões)

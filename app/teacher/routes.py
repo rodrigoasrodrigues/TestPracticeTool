@@ -696,69 +696,110 @@ def create_exam():
     groups_list = SubjectGroup.query.filter_by(created_by=current_user.id).order_by(SubjectGroup.name).all()
 
     if request.method == 'POST' and form.validate_on_submit():
-        # Get subject/count pairs from the form
         subject_ids = request.form.getlist('subject_ids[]')
         num_questions_list = request.form.getlist('num_questions[]')
+        group_ids = request.form.getlist('group_ids[]')
+        group_num_questions_list = request.form.getlist('group_num_questions[]')
 
         selections = []
+
         for sid, nq in zip(subject_ids, num_questions_list):
             try:
                 sid = int(sid)
                 nq = int(nq)
-                if sid > 0 and nq > 0:
-                    selections.append((sid, nq))
             except (ValueError, TypeError):
-                pass
+                continue
 
-        # Get group/count pairs
-        group_ids = request.form.getlist('group_ids[]')
-        group_num_questions_list = request.form.getlist('group_num_questions[]')
+            if sid <= 0 or nq <= 0:
+                continue
+
+            subject = db.session.get(Subject, sid)
+            if not subject or subject.created_by != current_user.id:
+                flash('Matéria inválida selecionada.', 'danger')
+                return render_template('teacher/exam_form.html', title='Nova Prova',
+                                       form=form, subjects=subjects_list, groups=groups_list)
+
+            selections.append({
+                'kind': 'subject',
+                'id': sid,
+                'name': subject.name,
+                'num_questions': nq,
+            })
+
         for gid, nq in zip(group_ids, group_num_questions_list):
             try:
                 gid = int(gid)
                 nq = int(nq)
-                if gid > 0 and nq > 0:
-                    group = db.session.get(SubjectGroup, gid)
-                    if not group or group.created_by != current_user.id:
-                        flash('Grupo inválido selecionado.', 'danger')
-                        return render_template('teacher/exam_form.html', title='Nova Prova',
-                                               form=form, subjects=subjects_list, groups=groups_list)
-                    group_subject_ids = [s.id for s in group.subjects.all()]
-                    available = Question.query.filter(
-                        Question.subject_id.in_(group_subject_ids),
-                        Question.created_by == current_user.id,
-                    ).count() if group_subject_ids else 0
-                    if available < nq:
-                        flash(f'O grupo "{group.name}" tem apenas {available} questões disponíveis, '
-                              f'mas você solicitou {nq}.', 'danger')
-                        return render_template('teacher/exam_form.html', title='Nova Prova',
-                                               form=form, subjects=subjects_list, groups=groups_list)
-                    # Add (special key None, gid) or handle separately
-                    selections.append(('group', gid, nq))
             except (ValueError, TypeError):
-                pass
+                continue
+
+            if gid <= 0 or nq <= 0:
+                continue
+
+            group = db.session.get(SubjectGroup, gid)
+            if not group or group.created_by != current_user.id:
+                flash('Grupo inválido selecionado.', 'danger')
+                return render_template('teacher/exam_form.html', title='Nova Prova',
+                                       form=form, subjects=subjects_list, groups=groups_list)
+
+            selections.append({
+                'kind': 'group',
+                'id': gid,
+                'name': group.name,
+                'num_questions': nq,
+            })
 
         if not selections:
             flash('Adicione pelo menos uma matéria ou grupo com questões para a prova.', 'danger')
             return render_template('teacher/exam_form.html', title='Nova Prova',
                                    form=form, subjects=subjects_list, groups=groups_list)
 
-        # Validate subject selections
-        for item in selections:
-            if len(item) == 2:
-                sid, nq = item
-                subject = db.session.get(Subject, sid)
-                if not subject or subject.created_by != current_user.id:
-                    flash('Matéria inválida selecionada.', 'danger')
+        # Keep one global pool to avoid duplicated questions across mixed selections.
+        used_question_ids = set()
+        selected_questions = []
+
+        for selection in selections:
+            if selection['kind'] == 'subject':
+                question_query = Question.query.filter_by(
+                    subject_id=selection['id'],
+                    created_by=current_user.id,
+                )
+                source_label = f'matéria "{selection["name"]}"'
+            else:
+                group = db.session.get(SubjectGroup, selection['id'])
+                group_subject_ids = [
+                    subject.id
+                    for subject in group.subjects.filter_by(created_by=current_user.id).all()
+                ]
+                if not group_subject_ids:
+                    flash(f'O grupo "{selection["name"]}" não possui matérias vinculadas.', 'danger')
                     return render_template('teacher/exam_form.html', title='Nova Prova',
                                            form=form, subjects=subjects_list, groups=groups_list)
-                available = Question.query.filter_by(subject_id=sid,
-                                                     created_by=current_user.id).count()
-                if available < nq:
-                    flash(f'A matéria "{subject.name}" tem apenas {available} questões disponíveis, '
-                          f'mas você solicitou {nq}.', 'danger')
-                    return render_template('teacher/exam_form.html', title='Nova Prova',
-                                           form=form, subjects=subjects_list, groups=groups_list)
+
+                question_query = Question.query.filter(
+                    Question.subject_id.in_(group_subject_ids),
+                    Question.created_by == current_user.id,
+                )
+                source_label = f'grupo "{selection["name"]}"'
+
+            if used_question_ids:
+                question_query = question_query.filter(~Question.id.in_(used_question_ids))
+
+            available_questions = question_query.all()
+            available_count = len(available_questions)
+
+            if available_count < selection['num_questions']:
+                flash(
+                    f'Não há questões suficientes no {source_label}. '
+                    f'Disponíveis sem repetição: {available_count}, solicitadas: {selection["num_questions"]}.',
+                    'danger',
+                )
+                return render_template('teacher/exam_form.html', title='Nova Prova',
+                                       form=form, subjects=subjects_list, groups=groups_list)
+
+            picked_questions = random.sample(available_questions, selection['num_questions'])
+            selected_questions.extend(picked_questions)
+            used_question_ids.update(question.id for question in picked_questions)
 
         exam = Exam(
             title=form.title.data,
@@ -768,46 +809,25 @@ def create_exam():
         db.session.add(exam)
         db.session.flush()
 
-        order_num = 1
-        for item in selections:
-            if len(item) == 2:
-                # Subject-based selection
-                sid, nq = item
-                all_questions = Question.query.filter_by(subject_id=sid,
-                                                         created_by=current_user.id).all()
-                selected_questions = random.sample(all_questions, nq)
-            else:
-                # Group-based selection
-                _, gid, nq = item
-                group = db.session.get(SubjectGroup, gid)
-                group_subject_ids = [s.id for s in group.subjects.all()]
-                all_questions = Question.query.filter(
-                    Question.subject_id.in_(group_subject_ids),
-                    Question.created_by == current_user.id,
-                ).all() if group_subject_ids else []
-                selected_questions = random.sample(all_questions, nq)
+        for order_num, question in enumerate(selected_questions, start=1):
+            eq = ExamQuestion(
+                exam_id=exam.id,
+                question_id=question.id,
+                order_number=order_num
+            )
+            db.session.add(eq)
+            db.session.flush()
 
-            for q in selected_questions:
-                eq = ExamQuestion(
-                    exam_id=exam.id,
-                    question_id=q.id,
-                    order_number=order_num
+            # Randomize answer options order
+            options = question.answer_options.all()
+            random.shuffle(options)
+            for display_order, opt in enumerate(options, start=1):
+                eqo = ExamQuestionOption(
+                    exam_question_id=eq.id,
+                    answer_option_id=opt.id,
+                    display_order=display_order
                 )
-                db.session.add(eq)
-                db.session.flush()
-
-                # Randomize answer options order
-                options = q.answer_options.all()
-                random.shuffle(options)
-                for display_order, opt in enumerate(options, start=1):
-                    eqo = ExamQuestionOption(
-                        exam_question_id=eq.id,
-                        answer_option_id=opt.id,
-                        display_order=display_order
-                    )
-                    db.session.add(eqo)
-
-                order_num += 1
+                db.session.add(eqo)
 
         db.session.commit()
         flash(f'Prova "{exam.title}" criada com sucesso!', 'success')
