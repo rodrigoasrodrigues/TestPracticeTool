@@ -60,6 +60,10 @@
                                 <img src="{{ image_url(question.image_path) }}"
                                      class="img-thumbnail" style="max-height: 150px;" alt="Imagem atual">
                                 <small class="text-muted d-block mt-1">Imagem atual. Faça upload de uma nova para substituí-la.</small>
+                                <div class="form-check mt-2">
+                                    {{ form.remove_image(class="form-check-input") }}
+                                    {{ form.remove_image.label(class="form-check-label") }}
+                                </div>
                             </div>
                             {% endif %}
                         </div>
@@ -88,6 +92,10 @@
                                 <img src="{{ image_url(question.explanation_image_path) }}"
                                      class="img-thumbnail" style="max-height: 150px;" alt="Imagem atual da explicação">
                                 <small class="text-muted d-block mt-1">Imagem atual da explicação. Faça upload de uma nova para substituí-la.</small>
+                                <div class="form-check mt-2">
+                                    {{ form.remove_explanation_image(class="form-check-input") }}
+                                    {{ form.remove_explanation_image.label(class="form-check-label") }}
+                                </div>
                             </div>
                             {% endif %}
                         </div>
@@ -133,6 +141,11 @@
                                     <img src="{{ image_url(existing_option.image_path) }}"
                                          class="img-thumbnail" style="max-height: 120px;" alt="Imagem atual da opção {{ i }}">
                                     <small class="text-muted d-block mt-1">Imagem atual da opção {{ i }}. Faça upload de uma nova para substituí-la.</small>
+                                    {% set remove_field_name = 'remove_option_' ~ loop.index ~ '_image' %}
+                                    <div class="form-check mt-2">
+                                        {{ form[remove_field_name](class="form-check-input") }}
+                                        {{ form[remove_field_name].label(class="form-check-label") }}
+                                    </div>
                                 </div>
                                 {% endif %}
                             </div>

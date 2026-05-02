@@ -80,6 +80,10 @@ def _save_uploaded_image_field(file_storage, current_path=None):
     return save_image(file_storage)
 
 
+def _has_uploaded_file(file_storage):
+    return bool(file_storage and getattr(file_storage, 'filename', ''))
+
+
 def _delete_images(image_paths):
     for image_path in {path for path in image_paths if path}:
         try:
@@ -576,6 +580,8 @@ def edit_question(question_id):
 
         try:
             image_path = _save_uploaded_image_field(form.image.data, current_path=question.image_path)
+            if form.remove_image.data and not _has_uploaded_file(form.image.data):
+                image_path = None
             if image_path != question.image_path and image_path:
                 new_uploaded_images.append(image_path)
 
@@ -583,6 +589,8 @@ def edit_question(question_id):
                 form.explanation_image.data,
                 current_path=question.explanation_image_path,
             )
+            if form.remove_explanation_image.data and not _has_uploaded_file(form.explanation_image.data):
+                explanation_image_path = None
             if (explanation_image_path != question.explanation_image_path
                     and explanation_image_path):
                 new_uploaded_images.append(explanation_image_path)
@@ -590,10 +598,14 @@ def edit_question(question_id):
             option_image_paths = []
             for index, field_name in enumerate(_OPTION_IMAGE_FIELD_NAMES):
                 current_option_path = previous_option_paths[index] if index < len(previous_option_paths) else None
+                remove_field = getattr(form, f'remove_option_{index + 1}_image')
+                upload_data = getattr(form, field_name).data
                 option_image_path = _save_uploaded_image_field(
-                    getattr(form, field_name).data,
+                    upload_data,
                     current_path=current_option_path,
                 )
+                if remove_field.data and not _has_uploaded_file(upload_data):
+                    option_image_path = None
                 option_image_paths.append(option_image_path)
                 if option_image_path != current_option_path and option_image_path:
                     new_uploaded_images.append(option_image_path)
