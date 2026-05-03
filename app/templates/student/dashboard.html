@@ -60,6 +60,19 @@
                             {{ best }}%
                         </span>
                         <small class="text-muted d-block">Melhor nota</small>
+                        <div class="mt-2">
+                            {% if best == 100 %}
+                            <span class="badge text-bg-info">💎 Diamante</span>
+                            {% elif best > 90 %}
+                            <span class="badge text-bg-warning">🥇 Ouro</span>
+                            {% elif best > 80 %}
+                            <span class="badge text-bg-secondary">🥈 Prata</span>
+                            {% elif best > 60 %}
+                            <span class="badge" style="background-color: #cd7f32; color: #fff;">🥉 Bronze</span>
+                            {% elif best < 60 %}
+                            <span class="badge text-bg-danger">💩</span>
+                            {% endif %}
+                        </div>
                     </div>
                     {% endif %}
 
