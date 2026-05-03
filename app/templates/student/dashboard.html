@@ -1,6 +1,113 @@
 {% extends "base.html" %}
 {% block title %}Minhas Provas - TestPracticeTool{% endblock %}
 
+{% macro render_assignment_card(assignment) %}
+{% set can, msg = assignment.can_attempt() %}
+{% set best = assignment.best_score() %}
+<div class="col-md-6 col-lg-4">
+    <div class="card shadow-sm h-100">
+        <div class="card-header bg-transparent">
+            <h5 class="card-title mb-0">{{ assignment.exam.title }}</h5>
+        </div>
+        <div class="card-body">
+            {% if assignment.exam.description %}
+            <p class="text-muted small mb-3">{{ assignment.exam.description }}</p>
+            {% endif %}
+
+            <div class="row g-2 text-center mb-3">
+                <div class="col-4">
+                    <div class="bg-light rounded p-2">
+                        <div class="fw-bold">{{ assignment.exam.total_questions() }}</div>
+                        <small class="text-muted">Questões</small>
+                    </div>
+                </div>
+                <div class="col-4">
+                    <div class="bg-light rounded p-2">
+                        <div class="fw-bold">
+                            {% if assignment.time_limit_minutes %}
+                            {{ assignment.time_limit_minutes }}min
+                            {% else %}∞{% endif %}
+                        </div>
+                        <small class="text-muted">Tempo</small>
+                    </div>
+                </div>
+                <div class="col-4">
+                    <div class="bg-light rounded p-2">
+                        <div class="fw-bold">
+                            {{ assignment.attempt_count() }}/{% if assignment.max_attempts is none %}∞{% else %}{{ assignment.max_attempts }}{% endif %}
+                        </div>
+                        <small class="text-muted">Tentativas</small>
+                    </div>
+                </div>
+            </div>
+
+            {% if best is not none %}
+            <div class="text-center mb-3">
+                <span class="fs-4 fw-bold {{ 'text-success' if best >= 60 else 'text-danger' }}">
+                    {{ best }}%
+                </span>
+                <small class="text-muted d-block">Melhor nota</small>
+                <div class="mt-2">
+                    {% if best == 100 %}
+                    <span class="badge text-bg-info">💎 Diamante</span>
+                    {% elif best > 90 %}
+                    <span class="badge text-bg-warning">🥇 Ouro</span>
+                    {% elif best > 80 %}
+                    <span class="badge text-bg-secondary">🥈 Prata</span>
+                    {% elif best > 60 %}
+                    <span class="badge" style="background-color: #cd7f32; color: #fff;">🥉 Bronze</span>
+                    {% elif best < 60 %}
+                    <span class="badge text-bg-danger">💩</span>
+                    {% endif %}
+                </div>
+            </div>
+            {% endif %}
+
+            {% if assignment.available_from or assignment.available_until %}
+            <div class="text-muted small mb-2">
+                {% if assignment.available_from %}
+                <i class="bi bi-calendar-event me-1"></i>
+                Início: {{ assignment.available_from.strftime('%d/%m/%Y %H:%M') }}<br>
+                {% endif %}
+                {% if assignment.available_until %}
+                <i class="bi bi-calendar-x me-1"></i>
+                Prazo: {{ assignment.available_until.strftime('%d/%m/%Y %H:%M') }}
+                {% endif %}
+            </div>
+            {% endif %}
+        </div>
+        <div class="card-footer bg-transparent">
+            {% if can %}
+            <a href="{{ url_for('student.start_exam', assignment_id=assignment.id) }}"
+               class="btn btn-primary w-100">
+                <i class="bi bi-play-fill me-1"></i>Iniciar Prova
+            </a>
+            {% else %}
+            <button class="btn btn-secondary w-100" disabled title="{{ msg }}">
+                <i class="bi bi-lock me-1"></i>
+                {% if assignment.max_attempts is not none and assignment.attempt_count() >= assignment.max_attempts %}
+                Tentativas Esgotadas
+                {% else %}
+                Indisponível
+                {% endif %}
+            </button>
+            {% if assignment.attempt_count() > 0 %}
+            <div class="mt-2">
+                {% set last_attempt = assignment.get_last_completed_attempt() %}
+                {% if last_attempt %}
+                <a href="{{ url_for('student.exam_result', attempt_id=last_attempt.id) }}"
+                   class="btn btn-outline-info w-100 btn-sm">
+                    <i class="bi bi-eye me-1"></i>Ver Último Resultado
+                </a>
+                {% endif %}
+            </div>
+            {% endif %}
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% endmacro %}
+
 {% block content %}
 <div class="container">
     <div class="d-flex align-items-center mb-4">
@@ -33,115 +140,51 @@
     {% endif %}
 
     {% if assignments %}
-    <div class="row g-3">
+    {% set summary = namespace(perfect_count=0) %}
+    {% for assignment in assignments %}
+        {% if assignment.best_score() == 100 %}
+            {% set summary.perfect_count = summary.perfect_count + 1 %}
+        {% endif %}
+    {% endfor %}
+
+    <div class="row g-3 mb-4">
         {% for assignment in assignments %}
-        {% set can, msg = assignment.can_attempt() %}
-        {% set best = assignment.best_score() %}
-        {% set completed_count = assignment.attempts.filter_by(completed_at=None).count() %}
-        <div class="col-md-6 col-lg-4">
-            <div class="card shadow-sm h-100">
-                <div class="card-header bg-transparent">
-                    <h5 class="card-title mb-0">{{ assignment.exam.title }}</h5>
-                </div>
-                <div class="card-body">
-                    {% if assignment.exam.description %}
-                    <p class="text-muted small mb-3">{{ assignment.exam.description }}</p>
-                    {% endif %}
+            {% if assignment.best_score() != 100 %}
+                {{ render_assignment_card(assignment) }}
+            {% endif %}
+        {% endfor %}
+    </div>
 
-                    <div class="row g-2 text-center mb-3">
-                        <div class="col-4">
-                            <div class="bg-light rounded p-2">
-                                <div class="fw-bold">{{ assignment.exam.total_questions() }}</div>
-                                <small class="text-muted">Questões</small>
-                            </div>
-                        </div>
-                        <div class="col-4">
-                            <div class="bg-light rounded p-2">
-                                <div class="fw-bold">
-                                    {% if assignment.time_limit_minutes %}
-                                    {{ assignment.time_limit_minutes }}min
-                                    {% else %}∞{% endif %}
-                                </div>
-                                <small class="text-muted">Tempo</small>
-                            </div>
-                        </div>
-                        <div class="col-4">
-                            <div class="bg-light rounded p-2">
-                                <div class="fw-bold">
-                                    {{ assignment.attempt_count() }}/{% if assignment.max_attempts is none %}∞{% else %}{{ assignment.max_attempts }}{% endif %}
-                                </div>
-                                <small class="text-muted">Tentativas</small>
-                            </div>
-                        </div>
-                    </div>
-
-                    {% if best is not none %}
-                    <div class="text-center mb-3">
-                        <span class="fs-4 fw-bold {{ 'text-success' if best >= 60 else 'text-danger' }}">
-                            {{ best }}%
-                        </span>
-                        <small class="text-muted d-block">Melhor nota</small>
-                        <div class="mt-2">
-                            {% if best == 100 %}
-                            <span class="badge text-bg-info">💎 Diamante</span>
-                            {% elif best > 90 %}
-                            <span class="badge text-bg-warning">🥇 Ouro</span>
-                            {% elif best > 80 %}
-                            <span class="badge text-bg-secondary">🥈 Prata</span>
-                            {% elif best > 60 %}
-                            <span class="badge" style="background-color: #cd7f32; color: #fff;">🥉 Bronze</span>
-                            {% elif best < 60 %}
-                            <span class="badge text-bg-danger">💩</span>
+    {% if summary.perfect_count > 0 %}
+    <div class="accordion" id="perfectExamsAccordion">
+        <div class="accordion-item border-info">
+            <h2 class="accordion-header" id="perfectExamsHeading">
+                <button class="accordion-button collapsed bg-info-subtle text-info-emphasis fw-semibold"
+                        type="button"
+                        data-bs-toggle="collapse"
+                        data-bs-target="#perfectExamsCollapse"
+                        aria-expanded="false"
+                        aria-controls="perfectExamsCollapse">
+                    💎 Provas com 100% ({{ summary.perfect_count }})
+                </button>
+            </h2>
+            <div id="perfectExamsCollapse"
+                 class="accordion-collapse collapse"
+                 aria-labelledby="perfectExamsHeading"
+                 data-bs-parent="#perfectExamsAccordion">
+                <div class="accordion-body">
+                    <div class="row g-3">
+                        {% for assignment in assignments %}
+                            {% if assignment.best_score() == 100 %}
+                                {{ render_assignment_card(assignment) }}
                             {% endif %}
-                        </div>
+                        {% endfor %}
                     </div>
-                    {% endif %}
-
-                    {% if assignment.available_from or assignment.available_until %}
-                    <div class="text-muted small mb-2">
-                        {% if assignment.available_from %}
-                        <i class="bi bi-calendar-event me-1"></i>
-                        Início: {{ assignment.available_from.strftime('%d/%m/%Y %H:%M') }}<br>
-                        {% endif %}
-                        {% if assignment.available_until %}
-                        <i class="bi bi-calendar-x me-1"></i>
-                        Prazo: {{ assignment.available_until.strftime('%d/%m/%Y %H:%M') }}
-                        {% endif %}
-                    </div>
-                    {% endif %}
-                </div>
-                <div class="card-footer bg-transparent">
-                    {% if can %}
-                    <a href="{{ url_for('student.start_exam', assignment_id=assignment.id) }}"
-                       class="btn btn-primary w-100">
-                        <i class="bi bi-play-fill me-1"></i>Iniciar Prova
-                    </a>
-                    {% else %}
-                    <button class="btn btn-secondary w-100" disabled title="{{ msg }}">
-                        <i class="bi bi-lock me-1"></i>
-                        {% if assignment.max_attempts is not none and assignment.attempt_count() >= assignment.max_attempts %}
-                        Tentativas Esgotadas
-                        {% else %}
-                        Indisponível
-                        {% endif %}
-                    </button>
-                    {% if assignment.attempt_count() > 0 %}
-                    <div class="mt-2">
-                        {% set last_attempt = assignment.get_last_completed_attempt() %}
-                        {% if last_attempt %}
-                        <a href="{{ url_for('student.exam_result', attempt_id=last_attempt.id) }}"
-                           class="btn btn-outline-info w-100 btn-sm">
-                            <i class="bi bi-eye me-1"></i>Ver Último Resultado
-                        </a>
-                        {% endif %}
-                    </div>
-                    {% endif %}
-                    {% endif %}
                 </div>
             </div>
         </div>
-        {% endfor %}
     </div>
+    {% endif %}
     {% else %}
     <div class="text-center py-5 text-muted">
         <i class="bi bi-inbox fs-1 d-block mb-3"></i>
