@@ -11,6 +11,27 @@
         </div>
     </div>
 
+    <!-- Medal Count Section -->
+    {% if assignments %}
+    <div class="row g-2 mb-4">
+        <div class="col-auto">
+            <div class="badge text-bg-info p-2">💎 Diamante: {{ medal_counts.diamond }}</div>
+        </div>
+        <div class="col-auto">
+            <div class="badge text-bg-warning p-2">🥇 Ouro: {{ medal_counts.gold }}</div>
+        </div>
+        <div class="col-auto">
+            <div class="badge text-bg-secondary p-2">🥈 Prata: {{ medal_counts.silver }}</div>
+        </div>
+        <div class="col-auto">
+            <div class="badge p-2" style="background-color: #cd7f32; color: #fff;">🥉 Bronze: {{ medal_counts.bronze }}</div>
+        </div>
+        <div class="col-auto">
+            <div class="badge text-bg-danger p-2">💩 Cocô: {{ medal_counts.poop }}</div>
+        </div>
+    </div>
+    {% endif %}
+
     {% if assignments %}
     <div class="row g-3">
         {% for assignment in assignments %}

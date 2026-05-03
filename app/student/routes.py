@@ -31,8 +31,32 @@ def dashboard():
         return (1, best)    # attempted → sorted by score ascending (highest last)
 
     assignments = sorted(assignments, key=sort_key)
+    
+    # Count medals by score
+    medal_counts = {
+        'diamond': 0,   # 100%
+        'gold': 0,      # > 90%
+        'silver': 0,    # > 80%
+        'bronze': 0,    # > 60%
+        'poop': 0       # < 60%
+    }
+    
+    for assignment in assignments:
+        best = assignment.best_score()
+        if best is not None:
+            if best == 100:
+                medal_counts['diamond'] += 1
+            elif best > 90:
+                medal_counts['gold'] += 1
+            elif best > 80:
+                medal_counts['silver'] += 1
+            elif best > 60:
+                medal_counts['bronze'] += 1
+            elif best < 60:
+                medal_counts['poop'] += 1
+    
     return render_template('student/dashboard.html', title='Minhas Provas',
-                           assignments=assignments)
+                           assignments=assignments, medal_counts=medal_counts)
 
 
 @bp.route('/prova/<int:assignment_id>/iniciar', methods=['GET', 'POST'])
